@@ -1,50 +1,2164 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LIFF App Test</title>
-    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1b140c">
+<title>シュガーレジスタンス MVP</title>
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css"/>
+<style>
+:root{
+  --bg:#1b140c; --bg-card:#2a1f14; --bg-panel:#34281a;
+  --accent:#c9924a; --gold:#d4a017; --success:#5e8c72;
+  --danger:#b33a2e; --warn:#cf9a3e; --text:#e8d9bb; --text-dim:#a89878;
+  --border:#4a3a26; --coffee:#3d2512; --sugar:#fffaf0;
+  --rivet:#6b5a3a; --btn-ink:#2b1c0a;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px}
+.screen{display:none;position:fixed;top:0;left:0;right:0;bottom:56px;flex-direction:column;background:var(--bg);overflow-y:auto;z-index:1}
+.screen.active{display:flex}
+#screen-login.screen{bottom:0}
+
+/* ══ 永続ボトムナビ(全画面共通) ══ */
+#bottom-nav{position:fixed;left:0;right:0;bottom:0;height:56px;z-index:600;display:flex;
+  background:var(--bg-card);border-top:2px solid var(--rivet);padding:4px 3px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
+#bottom-nav.hide{display:none}
+.bn-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  min-height:44px;background:none;border:none;color:var(--text-dim);font-size:8.5px;
+  cursor:pointer;border-radius:8px;transition:background .15s,color .15s}
+.bn-btn:active{background:var(--bg-panel)}
+.bn-btn .mi{font-size:17px}
+.bn-btn.active{color:var(--accent)}
+.bn-btn.bn-disabled{opacity:.4}
+.btn{display:block;width:100%;padding:13px 16px;border:none;border-radius:6px;
+  font-size:15px;font-weight:600;cursor:pointer;transition:opacity .15s;text-align:center;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.2),inset 0 -2px 0 rgba(0,0,0,.3),0 2px 3px rgba(0,0,0,.45)}
+.btn:active{opacity:.7}
+.btn-primary{background:linear-gradient(180deg,#dba968,var(--accent));color:var(--btn-ink)}
+.btn-gold{background:linear-gradient(180deg,#e8c456,var(--gold));color:var(--btn-ink)}
+.btn-success{background:linear-gradient(180deg,#7eab90,var(--success));color:var(--btn-ink)}
+.btn-danger{background:linear-gradient(180deg,#cf6354,var(--danger));color:#fff2e8}
+.btn-dim{background:var(--bg-panel);color:var(--text-dim);border:1px solid var(--border)}
+.btn:disabled{opacity:.35;cursor:not-allowed}
+.header{display:flex;align-items:center;justify-content:space-between;
+  padding:11px 16px;background:var(--bg-card);border-bottom:2px solid var(--rivet);flex-shrink:0}
+.header h1{font-family:Georgia,'Times New Roman',serif;font-size:16px;font-weight:700;color:var(--gold);letter-spacing:1px}
+.header h1::after{content:' ⚙';display:inline-block;font-size:.75em;color:var(--text-dim);
+  animation:gear-spin 7s linear infinite;transform-origin:50% 55%}
+@keyframes gear-spin{to{transform:rotate(360deg)}}
+.back-btn{background:none;border:none;color:var(--accent);font-size:15px;cursor:pointer;padding:4px}
+.card{position:relative;background:var(--bg-card);border:1px solid var(--border);border-radius:4px;
+  padding:16px;margin:12px 16px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.25)}
+.card::before,.card::after{content:'';position:absolute;width:9px;height:9px;
+  border:2px solid var(--gold);opacity:.55;pointer-events:none}
+.card::before{top:-1px;left:-1px;border-right:none;border-bottom:none}
+.card::after{bottom:-1px;right:-1px;border-left:none;border-top:none}
+.section-title{font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px}
+.stat-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)}
+.stat-row:last-child{border-bottom:none}
+.stat-label{color:var(--text-dim);font-size:13px}
+.stat-val{font-weight:700;font-size:13px}
+
+/* Login */
+#screen-login{justify-content:center;align-items:center}
+.login-wrap{width:100%;max-width:380px;padding:32px 24px}
+.login-logo{font-size:64px;text-align:center}
+.login-title{text-align:center;margin:10px 0 30px}
+.login-title h1{font-family:Georgia,'Times New Roman',serif;font-size:26px;font-weight:900;color:var(--gold);letter-spacing:2px}
+.login-title p{color:var(--text-dim);font-size:12px;letter-spacing:1px;margin-top:6px;line-height:1.7}
+.form-group{margin-bottom:18px}
+.form-group label{display:block;font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
+.form-group input{width:100%;padding:13px;background:var(--bg-panel);border:1px solid var(--border);
+  border-radius:8px;color:var(--text);font-size:16px;outline:none}
+.form-group input:focus{border-color:var(--accent)}
+.login-note{text-align:center;color:var(--text-dim);font-size:11px;margin-top:16px;line-height:1.7}
+
+/* Map */
+#screen-map{overflow:hidden}
+#map{flex:1;min-height:0;position:relative}
+.map-footer{background:var(--bg-card);border-top:1px solid var(--border);padding:10px 12px;flex-shrink:0}
+.map-status{display:flex;justify-content:space-between;font-size:12px;margin-bottom:8px;color:var(--text-dim)}
+.map-status span{display:flex;align-items:center;gap:4px}
+.btn-soft{opacity:.4}
+
+#guide-bar{display:flex;align-items:flex-start;gap:8px;padding:8px 12px;flex-shrink:0;
+  background:var(--bg-card);border-bottom:1px solid var(--border)}
+.guide-avatar{width:32px;height:32px;border-radius:50%;background:var(--bg-panel);border:1.5px solid var(--gold);
+  display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+.guide-bubble{position:relative;flex:1;background:var(--bg-panel);border:1px solid var(--border);
+  border-radius:10px;padding:7px 10px;font-size:12px;line-height:1.5;color:var(--text)}
+.guide-bubble::before{content:'';position:absolute;left:-5px;top:9px;width:0;height:0;
+  border-top:5px solid transparent;border-bottom:5px solid transparent;border-right:6px solid var(--border)}
+.guide-name{color:var(--gold);font-weight:700;font-size:10px;display:block;margin-bottom:2px}
+
+#exposure-panel{display:flex;align-items:center;gap:10px;padding:8px 16px;flex-shrink:0;
+  background:linear-gradient(135deg,#1f150a,#291d10);border-bottom:1px solid rgba(201,146,74,.3)}
+.exp-label{font-size:11px;color:var(--text-dim);white-space:nowrap}
+.exp-bar{flex:1;height:7px;background:var(--bg-panel);border-radius:4px;overflow:hidden}
+.exp-fill{height:100%;border-radius:4px;transition:width .4s,background .4s;width:0%}
+.exp-val{font-size:11px;font-weight:700;color:var(--accent);width:30px;text-align:right}
+
+/* Detail/HQ */
+#screen-detail,#screen-hq{overflow-y:auto}
+.prop-name{font-size:19px;font-weight:700;margin-bottom:4px}
+.prop-hash{font-size:10px;color:var(--text-dim);font-family:monospace}
+.state-badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;margin-top:6px}
+.pen-bar-wrap{margin:14px 0 4px}
+.pen-bar{height:10px;background:var(--bg-panel);border-radius:5px;overflow:hidden}
+.pen-fill{height:100%;border-radius:5px;transition:width .5s}
+.risk-note{font-size:12px;color:var(--danger);margin-top:8px;display:flex;align-items:center;gap:6px}
+
+.tab-bar{display:flex;border-bottom:1px solid var(--border);background:var(--bg)}
+.tab-btn{flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;padding:6px 0;
+  font-size:13px;background:none;border:none;color:var(--text-dim);
+  cursor:pointer;border-bottom:2px solid transparent;transition:all .2s}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+.mission-item{padding:11px 0;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.mission-item:last-child{border-bottom:none}
+.mission-chk{width:22px;height:22px;border-radius:50%;border:2px solid var(--border);
+  display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0}
+.mission-chk.done{background:var(--success);border-color:var(--success);color:var(--btn-ink)}
+.mission-title{font-size:13px;font-weight:600}
+
+.log-item{padding:9px 0;border-bottom:1px solid var(--border);font-size:12px;display:flex;justify-content:space-between;gap:8px}
+.log-item:last-child{border-bottom:none}
+.log-time{color:var(--text-dim);font-size:11px;flex-shrink:0}
+
+.streak-hero{text-align:center;padding:18px 0}
+.streak-num{font-size:44px;font-weight:900;color:var(--gold);text-shadow:0 0 16px rgba(212,160,23,.4)}
+.streak-sub{font-size:12px;color:var(--text-dim);margin-top:4px}
+.milestone-row{display:flex;gap:8px;justify-content:center;margin-top:14px;flex-wrap:wrap}
+.milestone-chip{font-size:11px;padding:4px 9px;border-radius:12px;border:1px solid var(--border);color:var(--text-dim)}
+.milestone-chip.hit{border-color:var(--gold);color:var(--gold);background:rgba(212,160,23,.12)}
+
+.empty-state{text-align:center;padding:32px 16px;color:var(--text-dim)}
+.empty-state .icon{font-size:38px;margin-bottom:10px}
+
+/* GPS / legend */
+#gps-btn{position:absolute;right:12px;bottom:14px;z-index:400;width:46px;height:46px;
+  background:var(--bg-card);border:1px solid var(--border);border-radius:50%;font-size:19px;cursor:pointer;
+  box-shadow:0 2px 12px rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center}
+#gps-btn:active{transform:scale(.9)}
+#map-legend{position:absolute;left:12px;bottom:14px;z-index:400}
+.legend-toggle{width:46px;height:46px;background:var(--bg-card);border:1px solid var(--border);
+  border-radius:50%;font-size:16px;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,.55);
+  display:flex;align-items:center;justify-content:center}
+.legend-panel{display:none;position:absolute;bottom:54px;left:0;background:var(--bg-card);
+  border:1px solid var(--border);border-radius:10px;padding:10px 14px;white-space:nowrap;
+  box-shadow:0 4px 18px rgba(0,0,0,.55);font-size:11px}
+.legend-panel.show{display:block}
+.legend-row{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+.legend-row:last-child{margin-bottom:0}
+.legend-swatch{width:12px;height:12px;border-radius:2px;flex-shrink:0}
+
+/* Floating gain label (checkin juice) */
+.float-gain{position:fixed;left:50%;bottom:170px;transform:translateX(-50%);
+  font-size:22px;font-weight:900;color:var(--gold);text-shadow:0 0 10px rgba(212,160,23,.6);
+  pointer-events:none;z-index:1350;animation:float-gain-up 1.1s ease-out forwards}
+@keyframes float-gain-up{0%{opacity:0;transform:translate(-50%,0) scale(.7)}15%{opacity:1;transform:translate(-50%,-6px) scale(1.08)}100%{opacity:0;transform:translate(-50%,-70px) scale(1)}}
+
+/* Checkin button ripple */
+.btn-ripple{position:absolute;border-radius:50%;background:rgba(255,255,255,.35);
+  pointer-events:none;transform:scale(0);animation:btn-ripple-anim .55s linear}
+@keyframes btn-ripple-anim{to{transform:scale(2.6);opacity:0}}
+
+/* Inspector flash */
+#inspector-flash{position:fixed;inset:0;background:rgba(179,58,46,.45);z-index:1300;pointer-events:none;opacity:0}
+#inspector-flash.show{animation:inspector-blink 1.6s ease-in-out}
+@keyframes inspector-blink{0%,100%{opacity:0}15%,35%{opacity:.7}25%,45%{opacity:.15}55%{opacity:.7}65%{opacity:0}}
+
+/* Decrypt overlay */
+.decrypt-bg{display:none;position:fixed;inset:0;background:rgba(2,8,7,.94);z-index:1100;
+  flex-direction:column;align-items:center;justify-content:center;gap:16px}
+.decrypt-bg.active{display:flex}
+.decrypt-text{font-size:14px;color:var(--gold);letter-spacing:1px;font-family:monospace}
+.decrypt-bar{width:220px;height:8px;background:var(--bg-panel);border-radius:4px;overflow:hidden}
+.decrypt-fill{height:100%;background:var(--gold);width:0%}
+
+/* Modal (milk captain etc.) */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1000;
+  align-items:center;justify-content:center;padding:24px}
+.modal-bg.active{display:flex}
+.modal-box{background:var(--bg-card);border:1px solid var(--border);border-radius:16px;
+  padding:24px;width:100%;max-width:360px;text-align:center}
+.modal-box .icon{font-size:42px;margin-bottom:8px}
+.modal-box h3{font-size:16px;margin-bottom:10px;color:var(--accent)}
+.modal-box p{color:var(--text-dim);font-size:13px;line-height:1.8;margin-bottom:18px;white-space:pre-line;text-align:left}
+
+/* Toast */
+.toast{position:fixed;bottom:96px;left:50%;transform:translateX(-50%);
+  background:var(--bg-panel);border:1px solid var(--border);border-radius:8px;
+  padding:10px 18px;font-size:13px;z-index:1400;pointer-events:none;
+  opacity:0;transition:opacity .3s;max-width:88vw;text-align:center}
+.toast.show{opacity:1}
+.toast.success{border-color:var(--success);color:var(--success)}
+.toast.error{border-color:var(--danger);color:var(--danger)}
+.toast.info{border-color:var(--accent);color:var(--accent)}
+
+/* ══ 通信網スクリーン(蒸気配管/真鍮ゲージ風) ══ */
+#screen-network{overflow:hidden;background:#140d07}
+.netscr-header{display:flex;align-items:center;justify-content:space-between;padding:11px 16px;
+  background:#20160c;border-bottom:2px solid var(--rivet);flex-shrink:0}
+.netscr-header h1{font-family:Georgia,'Times New Roman',serif;font-size:15px;font-weight:700;color:#d9a956;letter-spacing:1px}
+.netscr-ap{display:flex;align-items:center;gap:5px;background:#2a1d10;border:1px solid rgba(201,146,74,.35);
+  border-radius:8px;padding:4px 10px;font-size:13px;font-weight:700;color:#d9a956}
+.sw-bar-wrap{position:relative;height:26px;margin:10px 16px;flex-shrink:0;
+  background:#20160c;border:1px solid rgba(201,146,74,.35);border-radius:4px;overflow:hidden}
+.sw-bar-fill{height:100%;background:linear-gradient(90deg,#8a5a1e,#d9a956);border-radius:4px;
+  transition:width .5s;box-shadow:0 0 12px rgba(201,146,74,.5)}
+.sw-bar-text{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:10px;font-weight:700;letter-spacing:1px;color:#f3e3c0;text-shadow:0 1px 2px rgba(0,0,0,.6)}
+#net-graph-wrap{flex:1;min-height:0;position:relative;margin:0 16px 10px}
+#net-graph-wrap svg{width:100%;height:100%;display:block}
+.net-node{cursor:pointer}
+.net-node-ring-sel{fill:none;stroke:#fff3d0;stroke-width:1.6;stroke-dasharray:3 3}
+.net-node-ring-hq{fill:none;stroke:#d9a956;stroke-width:2}
+.net-node-ring-hub{fill:none;stroke:#5e8c72;stroke-width:2;stroke-dasharray:2 2}
+.net-edge{stroke:#e8c97a;stroke-width:2.2;opacity:.9;stroke-dasharray:6 5;animation:net-flow 1s linear infinite}
+.net-edge-glow{stroke:#d9a956;stroke-width:5;opacity:.18}
+@keyframes net-flow{to{stroke-dashoffset:-11}}
+.netscr-panel{flex-shrink:0;background:#20160c;border-top:2px solid var(--rivet);
+  padding:12px 16px 16px}
+.netscr-name{font-family:Georgia,'Times New Roman',serif;font-size:15px;font-weight:700;color:#f3e3c0}
+.netscr-sub{font-size:11px;color:#8a7558;margin-top:1px;margin-bottom:10px}
+.net-stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:12px}
+.net-stat{background:#2a1d10;border:1px solid rgba(201,146,74,.25);border-radius:6px;padding:7px 4px;text-align:center}
+.net-stat-label{font-size:8px;color:#8a7558;text-transform:uppercase;letter-spacing:.5px}
+.net-stat-val{font-size:13px;font-weight:800;color:#d9a956;margin-top:2px}
+.btn-net{display:block;width:100%;padding:13px;border:none;border-radius:6px;font-size:14px;font-weight:800;
+  letter-spacing:.5px;cursor:pointer;background:linear-gradient(180deg,#e0b46a,#8a5a1e);color:var(--btn-ink);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.25),inset 0 -2px 0 rgba(0,0,0,.3),0 2px 3px rgba(0,0,0,.45)}
+.btn-net:disabled{opacity:.3;cursor:not-allowed}
+.btn-net-cancel{display:block;width:100%;padding:8px;margin-top:6px;border:1px solid rgba(179,58,46,.45);
+  border-radius:8px;background:none;color:var(--danger);font-size:12px;cursor:pointer}
+.netscr-empty{padding:14px 0;text-align:center;color:#8a7558;font-size:12px}
+
+.maplibregl-canvas-container,.maplibregl-canvas{background:#140d07}
+.maplibregl-ctrl-group{background:var(--bg-card)!important;border:1px solid var(--border)!important;border-radius:6px!important}
+.maplibregl-ctrl-group button{background:var(--bg-card)!important;width:34px!important;height:34px!important}
+.maplibregl-ctrl-attrib{font-size:9px!important;opacity:.3}
+.maplibregl-ctrl-compass{display:none!important}
+</style>
 </head>
 <body>
-    <h1>LIFFアプリ テスト</h1>
-    <div id="status">初期化中...</div>
-    <div id="user-info" style="display:none;">
-        <p>ようこそ、<span id="display-name"></span> さん</p>
+
+<!-- LOGIN -->
+<div id="screen-login" class="screen active">
+  <div class="login-wrap">
+    <div class="login-logo">🍬</div>
+    <div class="login-title"><h1>シュガーレジスタンス</h1>
+      <p>裏の世界へ、潜入開始。</p>
     </div>
+    <div class="form-group">
+      <label>レジスタンス名(LINE名の代わり)</label>
+      <input type="text" id="name-input" placeholder="名前を入力..." maxlength="16" autocomplete="off">
+    </div>
+    <button class="btn btn-gold" id="start-btn">▶ 潜入を開始する</button>
+    <div class="login-note" id="login-note"></div>
+  </div>
+</div>
 
-    <script>
-        // LINE Developersで後ほど発行されるLIFF IDをここに記述します
-        const MY_LIFF_ID = '2010478624-P3WEF0EB'; 
+<!-- MAP -->
+<div id="screen-map" class="screen">
+  <div class="header">
+    <h1>🍬 シュガーレジスタンス</h1>
+    <span style="display:flex;align-items:center;gap:8px">
+      <span id="hdr-test-badge" style="display:none;color:var(--danger);font-weight:700;font-size:11px;border:1px solid var(--danger);border-radius:4px;padding:1px 5px">🧪TEST</span>
+      <span id="hdr-streak" style="color:var(--gold);font-weight:700;font-size:13px">🔥0</span>
+    </span>
+  </div>
+  <div id="guide-bar">
+    <div class="guide-avatar">🥛</div>
+    <div class="guide-bubble"><span class="guide-name">ミルク隊長</span><span id="guide-text">…</span></div>
+  </div>
+  <div id="time-bonus-badge" style="display:none;font-size:11px;color:var(--gold);text-align:center;padding:4px 16px;background:var(--bg-panel);border-bottom:1px solid var(--border)"></div>
+  <div id="exposure-panel">
+    <span class="exp-label">👁 露出度</span>
+    <div class="exp-bar"><div class="exp-fill" id="exp-fill"></div></div>
+    <span class="exp-val" id="exp-val">0</span>
+  </div>
+  <div id="map">
+    <button id="gps-btn" title="現在地へ">🎯</button>
+    <div id="map-legend">
+      <button class="legend-toggle" id="legend-toggle" title="凡例">🗂</button>
+      <div class="legend-panel" id="legend-panel">
+        <div class="legend-row"><div class="legend-swatch" style="background:#3d2512"></div>未感染(0%)</div>
+        <div class="legend-row"><div class="legend-swatch" style="background:#a9742f"></div>潜伏中(1-39%)</div>
+        <div class="legend-row"><div class="legend-swatch" style="background:#f0a73a"></div>発症(40-79%)</div>
+        <div class="legend-row"><div class="legend-swatch" style="background:#fffaf0"></div>完全寝返り(80%+)</div>
+        <div class="legend-row"><div class="legend-swatch" style="background:#b33a2e"></div>検査官リスクあり(赤枠)</div>
+      </div>
+    </div>
+  </div>
+  <div class="map-footer">
+    <div class="map-status">
+      <span id="footer-hq">🏠 本拠地: 未登録</span>
+      <span id="footer-tasks">📦 未処理タスク: 0</span>
+    </div>
+    <button class="btn btn-primary" id="checkin-btn" style="font-size:16px;padding:15px;position:relative;overflow:hidden">🍬 チェックイン(砂糖を仕込む)</button>
+  </div>
+</div>
 
-        async function initializeLiff() {
-            try {
-                await liff.init({ liffId: MY_LIFF_ID });
-                document.getElementById('status').innerText = 'LIFF初期化成功';
-                
-                // ログイン状態の確認とユーザー情報の取得
-                if (liff.isLoggedIn()) {
-                    const profile = await liff.getProfile();
-                    document.getElementById('display-name').innerText = profile.displayName;
-                    document.getElementById('user-info').style.display = 'block';
-                } else {
-                    // LINEブラウザ以外で開いた場合はログインを促す
-                    liff.login();
-                }
-            } catch (error) {
-                document.getElementById('status').innerText = '初期化失敗: ' + error.message;
-                console.error('LIFF Initialization failed', error);
-            }
+<!-- DETAIL -->
+<div id="screen-detail" class="screen">
+  <div class="header">
+    <h1>陣地詳細</h1>
+  </div>
+  <div id="detail-body" style="padding-bottom:24px"></div>
+</div>
+
+<!-- HQ -->
+<div id="screen-hq" class="screen">
+  <div class="header">
+    <h1>🏠 本拠地(HQ)</h1>
+  </div>
+  <div id="hq-body" style="padding-bottom:24px"></div>
+</div>
+
+<!-- NETWORK (本拠地限定: 通信網) -->
+<div id="screen-network" class="screen">
+  <div class="netscr-header">
+    <h1>🕸️ 通信網</h1>
+    <div class="netscr-ap">🔓 <span id="net-ap-val">0</span></div>
+  </div>
+  <div class="sw-bar-wrap">
+    <div class="sw-bar-fill" id="sw-bar-fill" style="width:0%"></div>
+    <div class="sw-bar-text" id="sw-bar-text">SWEETNESS: 0% / 80%</div>
+  </div>
+  <div id="net-exposure-note" style="font-size:10px;color:#8a7558;text-align:center;margin:-4px 16px 6px"></div>
+  <div id="net-graph-wrap"></div>
+  <div class="netscr-panel" id="net-panel"></div>
+</div>
+
+<!-- 永続ボトムナビ(全画面共通) -->
+<div id="bottom-nav" class="hide">
+  <button class="bn-btn" data-target="map"><span class="mi">🗺️</span>マップ</button>
+  <button class="bn-btn" data-target="hq0"><span class="mi">🏠</span>HQ</button>
+  <button class="bn-btn" data-target="hq1"><span class="mi">🎯</span>ミッション</button>
+  <button class="bn-btn" data-target="hq2"><span class="mi">📖</span>物語</button>
+  <button class="bn-btn" data-target="hq4"><span class="mi">👤</span>プロフィール</button>
+</div>
+
+<!-- Inspector flash -->
+<div id="inspector-flash"></div>
+
+<!-- Decrypt overlay (task processing) -->
+<div class="decrypt-bg" id="decrypt-overlay">
+  <div style="font-size:46px">🔓</div>
+  <div class="decrypt-text">暗号データを解析中 ...</div>
+  <div class="decrypt-bar"><div class="decrypt-fill" id="decrypt-fill"></div></div>
+</div>
+
+<!-- Story modal (進行に応じて発生する物語イベント) -->
+<div class="modal-bg" id="story-modal">
+  <div class="modal-box">
+    <div class="icon" id="story-modal-icon">📖</div>
+    <h3 id="story-modal-title"></h3>
+    <p id="story-modal-body"></p>
+    <div id="story-modal-boss-row" style="display:none;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <button class="btn btn-dim" id="story-modal-watch">様子を見る</button>
+      <button class="btn btn-danger" id="story-modal-fight"></button>
+    </div>
+    <button class="btn btn-primary" id="story-modal-ok">了解した</button>
+  </div>
+</div>
+
+<!-- Summary modal (本日のサマリー: ロールオーバー時の通知統合) -->
+<div class="modal-bg" id="summary-modal">
+  <div class="modal-box">
+    <div class="icon">📋</div>
+    <h3>本日のサマリー</h3>
+    <p id="summary-modal-body"></p>
+    <button class="btn btn-primary" id="summary-modal-ok">了解した</button>
+  </div>
+</div>
+
+<!-- Event card modal (検査官接近時の選択型イベント) -->
+<div class="modal-bg" id="event-card-modal">
+  <div class="modal-box">
+    <div class="icon">🚨</div>
+    <h3>検査官接近</h3>
+    <p id="event-card-body" style="text-align:center"></p>
+    <div class="modal-btns" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <button class="btn btn-dim" id="event-avoid-btn">🤫 やり過ごす</button>
+      <button class="btn btn-danger" id="event-push-btn">💨 強行突破</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script>
+'use strict';
+
+/* ══════════ LIFF INITIALIZATION ══════════ */
+const MY_LIFF_ID = '2010478624-P3WEF0EB'; // ★ここにLINE Developersで発行したLIFF IDを入力してください
+
+async function initializeLiff() {
+  try {
+    await liff.init({ liffId: MY_LIFF_ID });
+    
+    // 初期化成功 ＆ ログイン済みの場合
+    if (liff.isLoggedIn()) {
+      // LINEのプロフィール情報を取得
+      const profile = await liff.getProfile();
+      const nameInput = document.getElementById('name-input');
+      
+      // 既存のセーブデータが無く、入力欄が空ならLINEの名前をセットする
+      if (nameInput && !nameInput.value) {
+        nameInput.value = profile.displayName;
+      }
+    } else {
+      // LINEブラウザ以外で開かれた場合は、LINEログインを促す
+      liff.login();
+    }
+  } catch (error) {
+    console.error('LIFFの初期化に失敗しました', error);
+  }
+}
+
+/* ══════════ GEOHASH ══════════ */
+const Geohash = (() => {
+  const B32 = '0123456789bcdefghjkmnpqrstuvwxyz';
+  function encode(lat,lon,prec){prec=prec||7;let idx=0,bit=0,even=true,hash='';let latMin=-90,latMax=90,lonMin=-180,lonMax=180;
+    while(hash.length<prec){if(even){const m=(lonMin+lonMax)/2;if(lon>=m){idx=(idx<<1)|1;lonMin=m;}else{idx<<=1;lonMax=m;}}
+      else{const m=(latMin+latMax)/2;if(lat>=m){idx=(idx<<1)|1;latMin=m;}else{idx<<=1;latMax=m;}}
+      even=!even;if(++bit===5){hash+=B32[idx];idx=0;bit=0;}}
+    return hash;}
+  function bounds(hash){let even=true,latMin=-90,latMax=90,lonMin=-180,lonMax=180;
+    for(const c of hash){const idx=B32.indexOf(c);
+      for(let b=4;b>=0;b--){const bit=(idx>>b)&1;
+        if(even){const m=(lonMin+lonMax)/2;if(bit)lonMin=m;else lonMax=m;}
+        else{const m=(latMin+latMax)/2;if(bit)latMin=m;else latMax=m;}
+        even=!even;}}
+    return{sw:{lat:latMin,lon:lonMin},ne:{lat:latMax,lon:lonMax}};}
+  function decode(hash){const b=bounds(hash);return{lat:(b.sw.lat+b.ne.lat)/2,lon:(b.sw.lon+b.ne.lon)/2};}
+  function adjacent(hash,dir){const b=bounds(hash);const lat=(b.sw.lat+b.ne.lat)/2,lon=(b.sw.lon+b.ne.lon)/2;
+    const dLat=b.ne.lat-b.sw.lat,dLon=b.ne.lon-b.sw.lon;const p=hash.length;
+    if(dir==='n')return encode(lat+dLat,lon,p);if(dir==='s')return encode(lat-dLat,lon,p);
+    if(dir==='e')return encode(lat,lon+dLon,p);if(dir==='w')return encode(lat,lon-dLon,p);}
+  function inBounds(swLat,swLon,neLat,neLon,prec){prec=prec||7;const list=[];let rowHash=encode(swLat,swLon,prec);
+    for(let r=0;r<60;r++){const rb=bounds(rowHash);if(rb.sw.lat>neLat)break;
+      let col=rowHash;
+      for(let c=0;c<60;c++){const cb=bounds(col);if(cb.sw.lon>neLon)break;
+        list.push(col);if(list.length>=800)return list;col=adjacent(col,'e');}
+      rowHash=adjacent(rowHash,'n');}
+    return list;}
+  return{encode,decode,bounds,adjacent,inBounds};
+})();
+
+/* ══════════ CONSTANTS ══════════ */
+const PREC               = 7;                 // Geohash 7桁 ≒153m×153m (設計書8章)
+const LS_KEY              = 'sugar_resistance_mvp_v1';
+const PEN_PER_CHECKIN     = 10;                // チェックイン1回あたりの浸透度加算(初期値、要調整)
+const HYSTERESIS_MS       = 5*60*1000;         // 境界対策ヒステリシス(設計書8章)
+const CHECKIN_TOLERANCE_M = 70;                // 申告座標と陣地中心の許容誤差(設計書初期値50mをGPS精度踏まえ調整)
+const ADJ_BONUS_1         = 1.10;              // 隣接1マス完全寝返り済み
+const ADJ_BONUS_2         = 1.20;              // 隣接2マス以上
+const INSPECTOR_MIN       = 40, INSPECTOR_MAX = 79;   // 検査官リスク窓(発症段階)
+const INSPECTOR_CHANCE_PER_HOUR = 0.05;        // 検査官来訪確率/時(初期値、要調整)
+const INSPECTOR_PENALTY   = 20;                // 来訪時の浸透度引き下げ量
+const SIM_HOUR_MS         = 45000;             // デモ用圧縮: 実時間45秒=ゲーム内1時間相当で検査官判定(本番はpg_cronで1時間毎)
+const RESET_HOUR          = 3;                 // デイリーリセット基準(AM3:00)
+const TASK_MIN_AMOUNT = 1, TASK_MAX_AMOUNT = 3;
+const STREAK_MILESTONES   = [3,7,14,30];
+const PROTECTION_MONTHLY_LIMIT = 3;
+const AP_BOOST_COST       = 20;               // 解析ポイント消費: 浸透ブースト
+const AP_BOOST_AMOUNT     = 15;               // ブーストで上昇する浸透度
+const AP_IMMUNE_COST      = 15;               // 解析ポイント消費: 検査官対策
+const AP_IMMUNE_DURATION_MS = 10*60*1000;     // 検査官対策の有効時間(10分)
+const AP_STREAK_TICKET_COST = 30;             // 解析ポイント消費: ストリーク保護チケット
+const AP_CONNECT_COST     = 10;               // 解析ポイント消費: 通信網の接続1本
+const SWEETNESS_GOAL      = 80;               // 通信網画面の進捗バー目標(完全寝返り基準)
+const DEFAULT_CENTER = [139.6360, 35.8624];    // 南浦和駅(設計書記載のテスト座標)
+const NETWORK_DECAY_AMOUNT = 2;               // 1日ごとの自然減衰(未接続/接続弱の陣地)
+const HUB_OUT_DEGREE_THRESHOLD = 3;           // 中継基地と認定する送信本数
+const AP_BANDWIDTH_COST  = 60;                // 解析ポイント消費: 帯域拡張
+const NET_OUT_MAX_UPGRADED = 8;               // 帯域拡張後の送信元上限
+const SEVER_CHANCE_PER_HOUR = 0.04;           // 経路遮断イベント発生確率/時
+const UPGRADE_MAX_LEVEL = 3;                  // 防衛力/生産力の最大レベル
+const UPGRADE_BASE_COST = 15;                 // 防衛力/生産力1レベルあたりのAP基準コスト
+
+/* ══════════ 陣地タイプ ══════════ */
+const TERRITORY_TYPES = {
+  commercial:  {label:'商業地', emoji:'🏢', penMult:1.0, inspectorMult:1.0, taskMult:1.5},
+  residential: {label:'住宅地', emoji:'🏠', penMult:1.0, inspectorMult:0.7, taskMult:1.0},
+  station:     {label:'駅前',   emoji:'🚉', penMult:1.2, inspectorMult:1.1, taskMult:1.0},
+  park:        {label:'公園',   emoji:'🌳', penMult:1.0, inspectorMult:0.9, taskMult:1.0, apBonus:1},
+};
+function territoryType(hash){
+  let n=0; for(let i=0;i<hash.length;i++) n=((n*31)+hash.charCodeAt(i))>>>0;
+  const keys=Object.keys(TERRITORY_TYPES);
+  return keys[n%keys.length];
+}
+function territoryTypeInfo(t){ return TERRITORY_TYPES[t&&t.type] || TERRITORY_TYPES.commercial; }
+
+/* ══════════ 時間帯ボーナス ══════════ */
+function timeMultiplier(){
+  const h=new Date().getHours();
+  if(h>=6&&h<9) return {pen:1.3, inspector:0.7, label:'🌅 モーニングシュガーボーナス(浸透+30%/検査官-30%)'};
+  if(h>=22||h<5) return {pen:0.9, inspector:1.3, label:'🌙 深夜は検査官が厳重警戒(浸透-10%/検査官+30%)'};
+  return {pen:1.0, inspector:1.0, label:null};
+}
+
+/* ══════════ HELPERS ══════════ */
+function clamp(v,mn,mx){return Math.max(mn,Math.min(mx,v));}
+function uid(){return 'id_'+Date.now().toString(36)+Math.random().toString(36).slice(2,8);}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function fmtTime(ts){const d=new Date(ts);return (d.getMonth()+1)+'/'+d.getDate()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}
+function vibrate(p){try{navigator.vibrate&&navigator.vibrate(p);}catch(e){}}
+function haversine(lat1,lon1,lat2,lon2){
+  const R=6371000, toRad=d=>d*Math.PI/180;
+  const dLat=toRad(lat2-lat1), dLon=toRad(lon2-lon1);
+  const a=Math.sin(dLat/2)**2+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+function gameDateKey(ts){
+  const d=new Date(ts||Date.now()); d.setHours(d.getHours()-RESET_HOUR);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function nextResetTimestamp(ts){
+  const d=new Date(ts||Date.now());
+  const reset=new Date(d.getFullYear(),d.getMonth(),d.getDate(),RESET_HOUR,0,0,0);
+  if(d.getTime()>=reset.getTime()) reset.setDate(reset.getDate()+1);
+  return reset.getTime();
+}
+function monthKey(ts){const d=new Date(ts||Date.now());return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
+function weekKey(ts){
+  const d=new Date(ts||Date.now());
+  const onejan=new Date(d.getFullYear(),0,1);
+  const week=Math.ceil((((d-onejan)/86400000)+onejan.getDay()+1)/7);
+  return d.getFullYear()+'-W'+week;
+}
+function hexToRgb(h){h=h.replace('#','');return {r:parseInt(h.slice(0,2),16),g:parseInt(h.slice(2,4),16),b:parseInt(h.slice(4,6),16)};}
+function lerpColor(a,b,t){
+  const pa=hexToRgb(a),pb=hexToRgb(b);
+  const r=Math.round(pa.r+(pb.r-pa.r)*t),g=Math.round(pa.g+(pb.g-pa.g)*t),bl=Math.round(pa.b+(pb.b-pa.b)*t);
+  return 'rgb('+r+','+g+','+bl+')';
+}
+
+/* ══════════ STATE MACHINE ══════════ */
+function stateLabel(p){
+  if(p<=0) return '未感染';
+  if(p<40)  return '潜伏中';
+  if(p<80)  return '発症';
+  return '完全寝返り';
+}
+function stateColor(p){
+  if(p<=0) return '#3d2512';
+  if(p<40)  return lerpColor('#3d2512','#a9742f', p/40);
+  if(p<80)  return lerpColor('#c97a1d','#f0a73a', (p-40)/40);
+  return lerpColor('#f6d27a','#fffaf0', clamp((p-80)/20,0,1));
+}
+const STORY_LINES = {
+  '潜伏中':'わずかに甘みに慣れ始めている…',
+  '発症':'「最近ここ、ちょっと甘くない？」噂が立ち始めた',
+  '完全寝返り':'この陣地は完全に寝返った！シュガーレジスタンスの拠点になった',
+};
+const INSPECTOR_LINES = [
+  '黒コーヒー帝国の検査官が巡回し、浸透の痕跡を消し去ってしまった…',
+  '品質管理部門が動いた。浸透度が押し戻された',
+  'エスプレッソ将軍配下の検査官が、この陣地を調査した',
+];
+
+/* ══════════ TERRITORY HELPERS ══════════ */
+function getOrCreateTerritory(hash){
+  if(!S.territories[hash]) S.territories[hash]={geohash:hash, penetration:0, lastCheckinAt:0, createdAt:Date.now(), checkinCount:0,
+    type:territoryType(hash), defenseLevel:0, productionLevel:0};
+  return S.territories[hash];
+}
+function getAdjacentHashes(hash){
+  const dirs=['n','s','e','w'];
+  const adj=dirs.map(d=>Geohash.adjacent(hash,d));
+  adj.push(Geohash.adjacent(Geohash.adjacent(hash,'n'),'e'));
+  adj.push(Geohash.adjacent(Geohash.adjacent(hash,'n'),'w'));
+  adj.push(Geohash.adjacent(Geohash.adjacent(hash,'s'),'e'));
+  adj.push(Geohash.adjacent(Geohash.adjacent(hash,'s'),'w'));
+  return adj;
+}
+function adjacentConvertedCount(hash){
+  return getAdjacentHashes(hash).filter(h=>S.territories[h]&&S.territories[h].penetration>=80).length;
+}
+function adjacencyMultiplier(hash){
+  const cnt=adjacentConvertedCount(hash);
+  if(cnt>=2) return ADJ_BONUS_2;
+  if(cnt>=1) return ADJ_BONUS_1;
+  return 1.0;
+}
+function nameForHash(hash){ return '陣地#'+hash.slice(-4).toUpperCase(); }
+
+/* ══════════ PERSISTED STATE ══════════ */
+let S=null;
+function load(){try{const r=localStorage.getItem(LS_KEY); if(r) return JSON.parse(r);}catch(e){} return null;}
+function save(){try{localStorage.setItem(LS_KEY, JSON.stringify(S));}catch(e){}}
+
+function newState(name){
+  return {
+    user:{id:uid(), name:name||'名無しの戦士', createdAt:Date.now(), hqGeohash:null,
+      tutorialDone:false, inspectorTipShown:false, apPoints:0, lastActive:Date.now(), testMode:false,
+      totalCheckins:0, totalApSpent:0, totalTasksProcessed:0, titles:{seen:{}, list:[]}, seenHints:{}, collectibles:{seen:{}, list:[]}, ascensionCount:0},
+    territories:{},
+    checkinLogs:[],
+    tasks:[],
+    streak:{current:0, lastGameDate:null, protectionUsedThisMonth:0, protectionResetMonth:monthKey(), bonusProtection:0},
+    dailyMission:{gameDate:gameDateKey(), loginDone:true, checkinDone:false, taskDone:false},
+    weeklyMission:null,
+    lastInspectorTick:Date.now(),
+    lastSeveranceTick:Date.now(),
+    exposure:0,
+    story:{seen:{}, log:[]},
+    connections:[],
+  };
+}
+function migrate(s){
+  if(s.exposure===undefined) s.exposure=0;
+  if(s.user.apPoints===undefined) s.user.apPoints=0;
+  if(s.user.inspectorTipShown===undefined) s.user.inspectorTipShown=false;
+  if(s.user.testMode===undefined) s.user.testMode=false;
+  if(s.user.totalCheckins===undefined) s.user.totalCheckins=0;
+  if(s.user.totalApSpent===undefined) s.user.totalApSpent=0;
+  if(s.user.totalTasksProcessed===undefined) s.user.totalTasksProcessed=0;
+  if(s.user.ascensionCount===undefined) s.user.ascensionCount=0;
+  if(!s.user.titles) s.user.titles={seen:{}, list:[]};
+  if(!s.user.seenHints) s.user.seenHints={};
+  if(!s.user.collectibles) s.user.collectibles={seen:{}, list:[]};
+  if(s.weeklyMission===undefined) s.weeklyMission=null;
+  if(!s.lastInspectorTick) s.lastInspectorTick=Date.now();
+  if(!s.lastSeveranceTick) s.lastSeveranceTick=Date.now();
+  if(!s.checkinLogs) s.checkinLogs=[];
+  if(!s.tasks) s.tasks=[];
+  if(!s.story) s.story={seen:{}, log:[]};
+  if(s.streak.bonusProtection===undefined) s.streak.bonusProtection=0;
+  if(!s.connections) s.connections=[];
+  Object.values(s.territories||{}).forEach(t=>{
+    if(!t.type) t.type=territoryType(t.geohash);
+    if(t.defenseLevel===undefined) t.defenseLevel=0;
+    if(t.productionLevel===undefined) t.productionLevel=0;
+  });
+  return s;
+}
+
+/* ══════════ 通信網(有向接続: 接続元→接続先、接続元は最大5本(帯域拡張で8本)・接続先は最大1本) ══════════ */
+const NET_OUT_MAX=5, NET_IN_MAX=1;
+function outDegree(hash){ return S.connections.filter(c=>c[0]===hash).length; }
+function inDegree(hash){ return S.connections.filter(c=>c[1]===hash).length; }
+function outDegreeMax(hash){
+  const t=S.territories[hash];
+  return (t&&t.bandwidthUpgraded)? NET_OUT_MAX_UPGRADED : NET_OUT_MAX;
+}
+function isHubTerritory(hash){ return outDegree(hash)>=HUB_OUT_DEGREE_THRESHOLD; }
+function isAlreadyConnected(from,to){
+  return S.connections.some(c=>c[0]===from&&c[1]===to);
+}
+function canConnect(from,to){
+  if(!from||!to||from===to) return {ok:false, reason:'同じ陣地は接続できません'};
+  const tf=S.territories[from], tt=S.territories[to];
+  if(!tf||!tf.checkinCount||!tt||!tt.checkinCount) return {ok:false, reason:'両方ともチェックイン済みの陣地が必要です'};
+  if(isAlreadyConnected(from,to)) return {ok:false, reason:'すでに接続済みです'};
+  const maxOut=outDegreeMax(from);
+  if(outDegree(from)>=maxOut) return {ok:false, reason:'接続元はすでに'+maxOut+'本接続済みです(最大'+maxOut+'本)'};
+  if(inDegree(to)>=NET_IN_MAX) return {ok:false, reason:'接続先はすでに接続を受けています(最大'+NET_IN_MAX+'本)'};
+  if((S.user.apPoints||0)<AP_CONNECT_COST) return {ok:false, reason:'解析ポイントが足りません(必要:'+AP_CONNECT_COST+'AP)'};
+  return {ok:true};
+}
+function connectTerritories(from,to){
+  const chk=canConnect(from,to);
+  if(!chk.ok){ toast(chk.reason,'error'); return false; }
+  S.user.apPoints-=AP_CONNECT_COST;
+  S.user.totalApSpent=(S.user.totalApSpent||0)+AP_CONNECT_COST;
+  S.connections.push([from,to]);
+  save();
+  toast('🔗 AP'+AP_CONNECT_COST+'消費で通信経路を接続した','success');
+  setTimeout(checkProgress,200);
+  return true;
+}
+function isConnectedToHQ(hash){
+  return hopDistanceFromHQ(hash)!==Infinity;
+}
+function hopDistanceFromHQ(hash){
+  if(!S.user.hqGeohash) return Infinity;
+  if(hash===S.user.hqGeohash) return 0;
+  const visited=new Map([[S.user.hqGeohash,0]]);
+  const queue=[S.user.hqGeohash];
+  while(queue.length){
+    const cur=queue.shift();
+    const d=visited.get(cur);
+    S.connections.forEach(c=>{
+      if(c[0]===cur && !visited.has(c[1])){ visited.set(c[1], d+1); queue.push(c[1]); }
+    });
+  }
+  return visited.has(hash) ? visited.get(hash) : Infinity;
+}
+function supplyGainForHop(hop){
+  if(hop<=1) return 5;
+  if(hop===2) return 3;
+  if(hop===3) return 2;
+  return 1;
+}
+function resolveNetworkSupply(){
+  if(!S.user.hqGeohash) return;
+  let changed=false;
+  Object.values(S.territories).forEach(t=>{
+    if(t.geohash===S.user.hqGeohash) return;
+    if(t.penetration<=0) return;
+    const before=t.penetration;
+    const hop=hopDistanceFromHQ(t.geohash);
+    if(hop===Infinity){
+      t.penetration=clamp(t.penetration-NETWORK_DECAY_AMOUNT,0,100);
+    } else {
+      t.penetration=clamp(t.penetration-NETWORK_DECAY_AMOUNT+supplyGainForHop(hop),0,100);
+    }
+    if(t.penetration!==before) changed=true;
+  });
+  if(changed){
+    save();
+    redrawGridSafe();
+    logSummary('📦 補給シュガーが配給され、各陣地の寝返り状況が更新された');
+  }
+}
+const RECONQUEST_CHANCE_PER_DAY=0.05, RECONQUEST_PENALTY=30, RECONQUEST_MIN_OWNED=5;
+function resolveReconquestEvent(){
+  const owned=Object.values(S.territories).filter(t=>t.checkinCount>0 && t.penetration>0);
+  if(owned.length<RECONQUEST_MIN_OWNED) return;
+  if(Math.random()>=RECONQUEST_CHANCE_PER_DAY) return;
+  const count=2+Math.floor(Math.random()*2);
+  const targets=owned.slice().sort(()=>Math.random()-0.5).slice(0,count);
+  targets.forEach(t=>{ t.penetration=clamp(t.penetration-RECONQUEST_PENALTY,0,100); });
+  S.checkinLogs.unshift({type:'reconquest', geohash:targets[0].geohash, ts:Date.now(),
+    note:'黒コーヒー帝国による大規模な奪還作戦('+targets.length+'陣地)'});
+  save();
+  redrawGridSafe();
+  logSummary('⚔️ 黒コーヒー帝国の大規模な奪還作戦が発生！'+targets.map(t=>nameForHash(t.geohash)).join('・')+'の浸透度が大きく後退した(-'+RECONQUEST_PENALTY+'%)');
+}
+/* ══ 本日のサマリー収集(デイリーロールオーバー時の通知統合) ══ */
+let collectingSummary=null, queuedStoryEvent=null;
+function logSummary(line){
+  if(collectingSummary) collectingSummary.push(line);
+  else toast(line,'info');
+}
+function showSummaryModal(lines){
+  const bd=document.getElementById('summary-modal-body');
+  if(!bd) return;
+  bd.textContent=lines.join('\n');
+  document.getElementById('summary-modal').classList.add('active');
+}
+function networkSeveranceTick(){
+  if(!S) return;
+  const now=Date.now();
+  const elapsedHours=Math.floor((now-(S.lastSeveranceTick||now))/SIM_HOUR_MS);
+  if(elapsedHours<1) return;
+  S.lastSeveranceTick=(S.lastSeveranceTick||now)+elapsedHours*SIM_HOUR_MS;
+  if(S.connections.length===0){ save(); return; }
+  let severed=null;
+  for(let i=0;i<elapsedHours;i++){
+    if(Math.random()<SEVER_CHANCE_PER_HOUR){
+      const idx=Math.floor(Math.random()*S.connections.length);
+      severed=S.connections.splice(idx,1)[0];
+      break;
+    }
+  }
+  save();
+  if(severed){
+    S.checkinLogs.unshift({type:'severed', geohash:severed[0], note:nameForHash(severed[0])+' → '+nameForHash(severed[1])+' の経路が遮断された', ts:now});
+    flashInspectorAlert();
+    toast('✂️ 通信経路が遮断された！('+nameForHash(severed[0])+' → '+nameForHash(severed[1])+')','error');
+    if(document.getElementById('screen-network').classList.contains('active')) renderNetwork();
+    if(document.getElementById('screen-hq').classList.contains('active')) renderHQ();
+  }
+}
+function countDecayingTerritories(){
+  if(!S.user.hqGeohash) return 0;
+  return Object.values(S.territories).filter(t=>t.penetration>0 && t.geohash!==S.user.hqGeohash && hopDistanceFromHQ(t.geohash)===Infinity).length;
+}
+function hasRecentSeverance(){
+  const dayAgo=Date.now()-24*3600*1000;
+  return (S.checkinLogs||[]).some(l=>l.type==='severed' && l.ts>=dayAgo);
+}
+
+/* ══════════ STORY PROGRESSION(進行に応じて物語を解放) ══════════ */
+function countConverted(){ return Object.values(S.territories).filter(t=>t.penetration>=80).length; }
+const STORY_EVENTS=[
+  {id:'awaken',           icon:'🍬', title:'最後の角砂糖',        body:'戸棚に残っていた最後の角砂糖を手に、近所のカフェへ向かった。これが最初の潜入。', cond:()=>true},
+  {id:'milk_captain',     icon:'🥛', title:'ミルク隊長と遭遇',     body:'「お前もか」——同じ志を持つミルク隊長と出会った。初めての仲間だ。', cond:()=>Object.values(S.territories).some(t=>t.checkinCount>0)},
+  {id:'first_conversion', icon:'🎉', title:'浸透の実感',          body:'ある陣地が完全に寝返った。店の評判は「甘め推し」に変わっていく。', cond:()=>countConverted()>=1},
+  {id:'first_inspector',  icon:'🚨', title:'バレるリスク',         body:'検査官に浸透の痕跡を見つかれた。レジスタンス活動には危険が伴う。', cond:()=>(S.checkinLogs||[]).some(l=>l.type==='inspector')},
+  {id:'hq_registered',    icon:'🏠', title:'初めての指揮判断',     body:'本拠地を構えた。これからは集めた情報をもとに、指令を出す側になる。', cond:()=>!!S.user.hqGeohash},
+  {id:'first_connection', icon:'🕸️', title:'通信網の第一歩',      body:'陣地どうしを結ぶ通信経路を初めて繋いだ。本拠地への報告が、より速く届くようになる。', cond:()=>S.connections&&S.connections.length>=1},
+  {id:'network_complete', icon:'🌐', title:'通信網、完成',        body:'所有する全ての陣地が、本拠地への経路で繋がった。情報はもう、途切れることなく届く。', cond:()=>{
+    const owned=Object.keys(S.territories).filter(h=>S.territories[h].checkinCount>0);
+    return owned.length>=3 && owned.every(h=>isConnectedToHQ(h));
+  }},
+  {id:'cinnamon',         icon:'🌿', title:'シナモン合流',         body:'活動の広がりを聞いたシナモンが合流した。仲間が増えていく。', cond:()=>countConverted()>=3},
+  {id:'caramel',          icon:'🍮', title:'キャラメル合流',       body:'キャラメルが合流した。レジスタンスの陣容が整ってきた。', cond:()=>countConverted()>=5},
+  {id:'honey',            icon:'🍯', title:'ハニー合流',           body:'ハニーが合流した。活動範囲はさらに広がっていく。', cond:()=>countConverted()>=8},
+  {id:'maple',            icon:'🍁', title:'メープル合流',         body:'メープルが合流した。主要メンバーが揃った。', cond:()=>countConverted()>=12},
+  {id:'general_espresso', icon:'⚔️', title:'エスプレッソ将軍、現れる', body:'活動が看過できない規模になった。黒コーヒー帝国のエスプレッソ将軍が直接警告を発した。', cond:()=>countConverted()>=15, boss:true, bossCost:20, bossName:'エスプレッソ将軍'},
+  {id:'latte_admiral',    icon:'⚓', title:'ラテ提督の介入',       body:'継続的な活動を受け、ラテ提督が各地への介入を始めた。', cond:()=>S.streak.current>=7, boss:true, bossCost:30, bossName:'ラテ提督'},
+  {id:'americano_lord',   icon:'🛡️', title:'アメリカーノ卿の介入', body:'アメリカーノ卿までもが動き出した。帝国の反撃は本格化している。', cond:()=>S.streak.current>=14, boss:true, bossCost:40, bossName:'アメリカーノ卿'},
+  {id:'caffeine_emperor', icon:'👑', title:'カフェイン皇帝との対峙', body:'世界中にシュガーを取り戻す戦いは、まだ続く。カフェイン皇帝との対峙はこれからだ。', cond:()=>S.streak.current>=30, boss:true, bossCost:50, bossName:'カフェイン皇帝'},
+];
+function checkStoryProgress(){
+  if(!S||!S.story) return;
+  for(const ev of STORY_EVENTS){
+    if(!S.story.seen[ev.id] && ev.cond()){
+      S.story.seen[ev.id]=Date.now();
+      S.story.log.unshift({id:ev.id, icon:ev.icon, title:ev.title, body:ev.body, ts:Date.now()});
+      save();
+      if(collectingSummary){
+        collectingSummary.push('📖 物語が進んだ：'+ev.title);
+        queuedStoryEvent=ev;
+      } else {
+        showStoryModal(ev);
+      }
+      break;
+    }
+  }
+}
+let currentBossEvent=null;
+function showStoryModal(ev){
+  const ic=document.getElementById('story-modal-icon'), ti=document.getElementById('story-modal-title'), bd=document.getElementById('story-modal-body');
+  if(!ic) return;
+  ic.textContent=ev.icon; ti.textContent=ev.title; bd.textContent=ev.body;
+  const bossRow=document.getElementById('story-modal-boss-row');
+  const okBtn=document.getElementById('story-modal-ok');
+  if(ev.boss){
+    currentBossEvent=ev;
+    bossRow.style.display='grid';
+    okBtn.style.display='none';
+    document.getElementById('story-modal-fight').textContent='⚔️ 対決する(AP'+ev.bossCost+')';
+  } else {
+    currentBossEvent=null;
+    bossRow.style.display='none';
+    okBtn.style.display='block';
+  }
+  document.getElementById('story-modal').classList.add('active');
+}
+function resolveBossFight(){
+  const ev=currentBossEvent;
+  if(!ev) return;
+  if((S.user.apPoints||0)<ev.bossCost){ toast('解析ポイントが足りません(必要:'+ev.bossCost+'AP)','error'); return; }
+  S.user.apPoints-=ev.bossCost;
+  S.user.totalApSpent=(S.user.totalApSpent||0)+ev.bossCost;
+  const win=Math.random()<0.65;
+  document.getElementById('story-modal').classList.remove('active');
+  if(win){
+    const reward=ev.bossCost*2;
+    S.user.apPoints+=reward;
+    toast('🎉 '+ev.bossName+'との対決に勝利！解析ポイント+'+reward,'success');
+  } else {
+    toast('💥 '+ev.bossName+'との対決に敗れた…賭けたAPは失われた','error');
+  }
+  save();
+  currentBossEvent=null;
+}
+
+/* ══════════ 称号(活動量に応じて付与) ══════════ */
+const TITLE_DEFS=[
+  {id:'t_first_checkin', icon:'🔰', name:'見習い潜入員',     desc:'初めてのチェックインを行った',                cond:()=>(S.user.totalCheckins||0)>=1},
+  {id:'t_veteran',       icon:'🎖️', name:'ベテラン潜入員',     desc:'通算20回チェックインした',                    cond:()=>(S.user.totalCheckins||0)>=20},
+  {id:'t_first_conv',    icon:'🏴', name:'最初の制圧者',       desc:'陣地を1つ完全に寝返らせた',                    cond:()=>countConverted()>=1},
+  {id:'t_expert',        icon:'🥈', name:'浸透のエキスパート', desc:'陣地を5つ完全に寝返らせた',                    cond:()=>countConverted()>=5},
+  {id:'t_general',       icon:'🥇', name:'シュガー将軍',       desc:'陣地を15つ完全に寝返らせた',                   cond:()=>countConverted()>=15},
+  {id:'t_commander',     icon:'🏠', name:'指揮官',             desc:'本拠地を登録した',                              cond:()=>!!S.user.hqGeohash},
+  {id:'t_linker',        icon:'🔗', name:'通信網の構築者',     desc:'通信経路を1本接続した',                        cond:()=>S.connections.length>=1},
+  {id:'t_netmaster',     icon:'🕸️', name:'通信網のマスター',   desc:'通信経路を5本接続した',                        cond:()=>S.connections.length>=5},
+  {id:'t_persist',       icon:'🔥', name:'不屈の継続者',       desc:'ストリーク7日を達成した',                      cond:()=>S.streak.current>=7},
+  {id:'t_legend',        icon:'👑', name:'伝説のレジスタンス', desc:'ストリーク30日を達成した',                     cond:()=>S.streak.current>=30},
+  {id:'t_technician',    icon:'🛠️', name:'熟練の技術者',       desc:'解析ポイントを通算50AP以上活用した',            cond:()=>(S.user.totalApSpent||0)>=50},
+  {id:'t_hub_builder',   icon:'🏭', name:'中継基地の運用者',   desc:'送信元'+HUB_OUT_DEGREE_THRESHOLD+'本以上の中継基地を1つ運用した', cond:()=>Object.keys(S.territories).some(h=>isHubTerritory(h))},
+  {id:'t_network_complete', icon:'🌐', name:'通信網の完成者', desc:'所有する全陣地を本拠地に接続した', cond:()=>{
+    const owned=Object.keys(S.territories).filter(h=>S.territories[h].checkinCount>0);
+    return owned.length>=3 && owned.every(h=>isConnectedToHQ(h));
+  }},
+];
+function checkTitleProgress(){
+  if(!S||!S.user.titles) return;
+  TITLE_DEFS.forEach(t=>{
+    if(!S.user.titles.seen[t.id] && t.cond()){
+      S.user.titles.seen[t.id]=Date.now();
+      S.user.titles.list.unshift({id:t.id, icon:t.icon, name:t.name, ts:Date.now()});
+      save();
+      logSummary('🏅称号「'+t.name+'」を獲得した！');
+    }
+  });
+}
+function checkProgress(){
+  checkStoryProgress();
+  checkTitleProgress();
+  checkCollectibleProgress();
+}
+
+/* ══════════ コレクション(記念品・効果なしのフレーバー要素) ══════════ */
+const COLLECTIBLE_DEFS=[
+  {id:'c1', icon:'🧊', name:'最後の角砂糖の欠片',           cond:()=>(S.user.totalCheckins||0)>=1},
+  {id:'c2', icon:'📓', name:'ミルク隊長の手帳',             cond:()=>(S.user.totalCheckins||0)>=5},
+  {id:'c3', icon:'🗝️', name:'裏路地の鍵',                   cond:()=>(S.user.totalCheckins||0)>=10},
+  {id:'c4', icon:'📡', name:'傍受された通信記録',           cond:()=>(S.user.totalCheckins||0)>=20},
+  {id:'c5', icon:'🎟️', name:'帝国直営店の古いチケット',     cond:()=>(S.user.totalCheckins||0)>=35},
+  {id:'c6', icon:'🧭', name:'シナモンの羅針盤',             cond:()=>(S.user.totalCheckins||0)>=50},
+  {id:'c7', icon:'🕯️', name:'灯りの落ちた工房の鍵',         cond:()=>(S.user.totalCheckins||0)>=75},
+  {id:'c8', icon:'📯', name:'レジスタンスの角笛',           cond:()=>(S.user.totalCheckins||0)>=100},
+];
+const DUMMY_RIVALS=[
+  {name:'ミルク隊長', converted:6},
+  {name:'シナモン',   converted:9},
+  {name:'キャラメル', converted:4},
+  {name:'ハニー',     converted:12},
+  {name:'メープル',   converted:3},
+];
+function checkCollectibleProgress(){
+  if(!S||!S.user.collectibles) return;
+  COLLECTIBLE_DEFS.forEach(c=>{
+    if(!S.user.collectibles.seen[c.id] && c.cond()){
+      S.user.collectibles.seen[c.id]=Date.now();
+      S.user.collectibles.list.unshift({id:c.id, icon:c.icon, name:c.name, ts:Date.now()});
+      save();
+      logSummary('📦 記念品「'+c.name+'」を入手した');
+    }
+  });
+}
+function getSkillDefs(){
+  return [
+    {icon:'⚡', name:'浸透ブースト',          cost:AP_BOOST_COST, desc:'陣地の浸透度を+'+AP_BOOST_AMOUNT+'%高める(陣地詳細画面で使用)'},
+    {icon:'🛡️', name:'検査官対策',           cost:AP_IMMUNE_COST, desc:'陣地を10分間、検査官の巡回対象から外す(陣地詳細画面で使用)'},
+    {icon:'🔗', name:'通信網の接続',          cost:AP_CONNECT_COST, desc:'陣地どうしを繋ぎ、本拠地への通信経路を構築する(通信網画面で使用)'},
+    {icon:'🍬', name:'ストリーク保護チケット', cost:AP_STREAK_TICKET_COST, desc:'月の無料保護を使い切った後もストリークを守れるチケットを購入する(HQミッションタブで使用)'},
+    {icon:'📡', name:'帯域拡張', cost:AP_BANDWIDTH_COST, requiresTitle:'t_netmaster', desc:'陣地の送信上限を'+NET_OUT_MAX_UPGRADED+'本に拡張する(陣地詳細画面で使用)'},
+  ];
+}
+
+/* ══════════ 週間チャレンジ ══════════ */
+const WEEKLY_CHALLENGE_DEFS=[
+  {id:'w_convert3',  icon:'🏴', desc:'陣地を3つ完全寝返りさせる',   target:3,  metric:'convert',        reward:50},
+  {id:'w_checkin10', icon:'🍬', desc:'10回チェックインする',         target:10, metric:'checkins',       reward:40},
+  {id:'w_tasks5',    icon:'🔓', desc:'タスク処理を5回行う',          target:5,  metric:'tasksProcessed', reward:40},
+  {id:'w_connect2',  icon:'🔗', desc:'通信網を2本接続する',          target:2,  metric:'connections',     reward:40},
+];
+function weeklyMetricValue(metric){
+  if(metric==='convert') return countConverted();
+  if(metric==='checkins') return S.user.totalCheckins||0;
+  if(metric==='tasksProcessed') return S.user.totalTasksProcessed||0;
+  if(metric==='connections') return S.connections.length;
+  return 0;
+}
+function checkWeeklyRollover(){
+  const wk=weekKey();
+  if(!S.weeklyMission || S.weeklyMission.weekKey!==wk){
+    let n=0; for(let i=0;i<wk.length;i++) n=((n*31)+wk.charCodeAt(i))>>>0;
+    const def=WEEKLY_CHALLENGE_DEFS[n%WEEKLY_CHALLENGE_DEFS.length];
+    S.weeklyMission={weekKey:wk, defId:def.id, startValue:weeklyMetricValue(def.metric), claimed:false};
+    save();
+  }
+}
+function weeklyProgress(){
+  if(!S.weeklyMission) return null;
+  const def=WEEKLY_CHALLENGE_DEFS.find(d=>d.id===S.weeklyMission.defId);
+  if(!def) return null;
+  const current=Math.max(0, weeklyMetricValue(def.metric)-S.weeklyMission.startValue);
+  return {def, current, done:current>=def.target};
+}
+function claimWeeklyReward(){
+  const p=weeklyProgress();
+  if(!p || !p.done || S.weeklyMission.claimed){ toast('まだ達成していないか、受け取り済みです','error'); return; }
+  S.weeklyMission.claimed=true;
+  S.user.apPoints+=p.def.reward;
+  save();
+  toast('🎉 週間チャレンジ達成！解析ポイント+'+p.def.reward,'success');
+  renderHQ();
+}
+
+/* ══════════ DAILY ROLLOVER / pg_cron相当 ══════════ */
+function checkDailyRollover(){
+  const today=gameDateKey();
+  const didRollover = S.dailyMission.gameDate!==today;
+  checkWeeklyRollover();
+  if(didRollover){
+    collectingSummary=[];
+    const prev=S.dailyMission;
+    const allDone = prev.loginDone && prev.checkinDone && prev.taskDone;
+    finalizeStreak(allDone, prev.gameDate);
+    S.dailyMission={gameDate:today, loginDone:true, checkinDone:false, taskDone:false};
+    expireOldTasks();
+    resolveNetworkSupply();
+    resolveReconquestEvent();
+  }
+  const mk=monthKey();
+  if(S.streak.protectionResetMonth!==mk){ S.streak.protectionResetMonth=mk; S.streak.protectionUsedThisMonth=0; }
+  save();
+  checkProgress();
+  if(didRollover){
+    const lines=collectingSummary||[];
+    collectingSummary=null;
+    if(lines.length>0) setTimeout(()=>showSummaryModal(lines),300);
+  }
+}
+function expireOldTasks(){
+  const now=Date.now();
+  S.tasks.forEach(t=>{ if(t.status==='pending' && t.expiresAt<=now) t.status='expired'; });
+}
+function finalizeStreak(allDone, prevDateKey){
+  if(!prevDateKey) return;
+  if(allDone){
+    S.streak.current++;
+    S.streak.lastGameDate=prevDateKey;
+    logSummary('✅ 本日のミッションを全て達成！ストリーク'+S.streak.current+'日');
+    if(STREAK_MILESTONES.includes(S.streak.current)){
+      const bonus=S.streak.current*5;
+      S.user.apPoints+=bonus;
+      logSummary('🔥 ストリーク'+S.streak.current+'日達成！解析ポイント+'+bonus);
+    }
+  } else if(S.streak.current>0){
+    if(S.streak.bonusProtection>0){
+      S.streak.bonusProtection--;
+      logSummary('🍬 保護チケットを使ってストリークを守った(残り'+S.streak.bonusProtection+'枚)');
+    } else if(S.streak.protectionUsedThisMonth<PROTECTION_MONTHLY_LIMIT){
+      S.streak.protectionUsedThisMonth++;
+      logSummary('🧊 角砂糖でストリークを保護した(今月残り'+(PROTECTION_MONTHLY_LIMIT-S.streak.protectionUsedThisMonth)+'回)');
+    } else {
+      logSummary('💔 ストリークが途切れてしまった…');
+      S.streak.current=0;
+    }
+  }
+}
+
+/* ══════════ 検査官イベント(簡易・pg_cron相当) ══════════ */
+function inspectorTick(){
+  if(!S) return;
+  if(pendingEventTerritory) return; // 既にイベントカード対応中
+  const now=Date.now();
+  const elapsedHours=Math.floor((now-S.lastInspectorTick)/SIM_HOUR_MS);
+  if(elapsedHours<1) return;
+  S.lastInspectorTick += elapsedHours*SIM_HOUR_MS;
+  const tm=timeMultiplier();
+  let hitHash=null;
+  Object.values(S.territories).forEach(t=>{
+    if(hitHash) return;
+    const immune=t.inspectorImmuneUntil && now<t.inspectorImmuneUntil;
+    if(!immune && t.penetration>=INSPECTOR_MIN && t.penetration<=INSPECTOR_MAX){
+      const typeInfo=territoryTypeInfo(t);
+      const effectiveChance=Math.max(0, INSPECTOR_CHANCE_PER_HOUR*typeInfo.inspectorMult*tm.inspector - (t.defenseLevel||0)*0.01);
+      for(let i=0;i<elapsedHours;i++){
+        if(Math.random()<effectiveChance){
+          hitHash=t.geohash;
+          break;
         }
+      }
+    }
+  });
+  save();
+  if(hitHash) triggerEventCard(hitHash);
+}
+/* ══════════ 出来事カード(検査官接近時の選択型イベント) ══════════ */
+let pendingEventTerritory=null;
+function triggerEventCard(hash){
+  pendingEventTerritory=hash;
+  const body=document.getElementById('event-card-body');
+  if(body) body.textContent=nameForHash(hash)+'で検査官の気配がする。どうする？';
+  const modal=document.getElementById('event-card-modal');
+  if(modal) modal.classList.add('active');
+  flashInspectorAlert();
+}
+function resolveEventCard(choice){
+  const hash=pendingEventTerritory;
+  pendingEventTerritory=null;
+  document.getElementById('event-card-modal').classList.remove('active');
+  const t=S.territories[hash];
+  if(!t) return;
+  const now=Date.now();
+  if(choice==='avoid'){
+    t.penetration=clamp(t.penetration-5,0,100);
+    S.checkinLogs.unshift({type:'inspector', geohash:hash, ts:now, note:'検査官をやり過ごした(浸透-5%)'});
+    toast('🤫 '+nameForHash(hash)+'で検査官をやり過ごした(浸透-5%)','info');
+  } else {
+    if(Math.random()<0.5){
+      S.user.apPoints+=5;
+      S.checkinLogs.unshift({type:'inspector', geohash:hash, ts:now, note:'強行突破に成功した(被害なし・AP+5)'});
+      toast('💨 '+nameForHash(hash)+'で強行突破に成功！AP+5','success');
+    } else {
+      t.penetration=clamp(t.penetration-INSPECTOR_PENALTY*2,0,100);
+      S.checkinLogs.unshift({type:'inspector', geohash:hash, ts:now,
+        note:INSPECTOR_LINES[Math.floor(Math.random()*INSPECTOR_LINES.length)]+'(強行突破に失敗・浸透-'+(INSPECTOR_PENALTY*2)+'%)'});
+      toast('🚨 '+nameForHash(hash)+'で強行突破に失敗！浸透-'+(INSPECTOR_PENALTY*2)+'%','error');
+    }
+  }
+  save();
+  redrawGridSafe();
+  if(document.getElementById('screen-hq').classList.contains('active')) renderHQ();
+  if(document.getElementById('screen-detail').classList.contains('active') && currentHash===hash) renderDetail(hash);
+}
+function networkExposureBase(){
+  return Math.min(40, (S.connections?S.connections.length:0)*4);
+}
+function exposureDecayTick(){
+  if(!S) return;
+  const base=networkExposureBase();
+  S.exposure=clamp(S.exposure-4,base,100);
+  updateExposureUI();
+}
 
-        // ページ読み込み時に実行
-        window.onload = function() {
-            if (MY_LIFF_ID === 'YOUR_LIFF_ID_HERE') {
-                document.getElementById('status').innerText = '注意: LIFF IDを設定してください。';
-            } else {
-                initializeLiff();
-            }
-        };
-    </script>
+/* ══════════ MAP ══════════ */
+let MAP=null, _mapReady=false, playerMarker=null, hqMarker=null, _gridTimer=null;
+
+function initMap(){
+  MAP=new maplibregl.Map({
+    container:'map',
+    style:'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+    center:DEFAULT_CENTER, zoom:15.5, pitch:45, bearing:-8, antialias:true,
+  });
+  MAP.addControl(new maplibregl.NavigationControl({visualizePitch:true}),'top-right');
+  MAP.on('load', ()=>{
+    _mapReady=true;
+    _initCellLayers();
+    redrawGrid();
+    MAP.on('moveend', ()=>{ clearTimeout(_gridTimer); _gridTimer=setTimeout(redrawGrid,250); });
+    MAP.on('zoomend', ()=>{ clearTimeout(_gridTimer); _gridTimer=setTimeout(redrawGrid,250); });
+  });
+}
+function _initCellLayers(){
+  MAP.addSource('cells',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
+  MAP.addLayer({id:'cells-fill',type:'fill',source:'cells',
+    paint:{'fill-color':['get','color'],'fill-opacity':['get','fillOpacity']}});
+  MAP.addLayer({id:'cells-border',type:'line',source:'cells',
+    paint:{'line-color':['get','borderColor'],'line-width':1.4,'line-opacity':['get','borderOpacity']}});
+  MAP.addLayer({id:'cells-extrusion',type:'fill-extrusion',source:'cells',
+    filter:['>',['get','height'],1],
+    paint:{'fill-extrusion-color':['get','color'],'fill-extrusion-height':['get','height'],
+      'fill-extrusion-base':0,'fill-extrusion-opacity':['get','opacity']}});
+  MAP.on('click', e=>{
+    const feats=MAP.queryRenderedFeatures(e.point,{layers:['cells-extrusion','cells-fill']});
+    if(feats.length>0){ const h=feats[0].properties.hash; if(h) openDetail(h); }
+  });
+  ['cells-extrusion','cells-fill'].forEach(id=>{
+    MAP.on('mouseenter', id, ()=>{ MAP.getCanvas().style.cursor='pointer'; });
+    MAP.on('mouseleave', id, ()=>{ MAP.getCanvas().style.cursor=''; });
+  });
+}
+function cellFeature(hash, t){
+  const bnd=Geohash.bounds(hash);
+  const ring=[[bnd.sw.lon,bnd.sw.lat],[bnd.ne.lon,bnd.sw.lat],[bnd.ne.lon,bnd.ne.lat],[bnd.sw.lon,bnd.ne.lat],[bnd.sw.lon,bnd.sw.lat]];
+  let color,height,opacity,borderColor,borderOpacity,fillOpacity;
+  if(!t){
+    color='#3a3024'; height=0; opacity=0; borderColor='#2e2418'; borderOpacity=0.35; fillOpacity=0.04;
+  } else {
+    const p=t.penetration;
+    color=stateColor(p);
+    height=4+(p/100)*36;
+    opacity=0.85;
+    const risky=p>=INSPECTOR_MIN&&p<=INSPECTOR_MAX;
+    borderColor= risky?'#b33a2e':'#ffe9b3';
+    borderOpacity= risky?0.9:0.55;
+    fillOpacity=0.18;
+  }
+  return {type:'Feature',geometry:{type:'Polygon',coordinates:[ring]},
+    properties:{hash,color,height,opacity,borderColor,borderOpacity,fillOpacity}};
+}
+function redrawGrid(){
+  if(!MAP||!_mapReady||!S) return;
+  const src=MAP.getSource('cells'); if(!src) return;
+  const features=[];
+  Object.values(S.territories).forEach(t=>features.push(cellFeature(t.geohash,t)));
+  if(MAP.getZoom()>=14){
+    const b=MAP.getBounds();
+    Geohash.inBounds(b.getSouthWest().lat,b.getSouthWest().lng,b.getNorthEast().lat,b.getNorthEast().lng,PREC)
+      .forEach(h=>{ if(!S.territories[h]) features.push(cellFeature(h,null)); });
+  }
+  src.setData({type:'FeatureCollection',features});
+  updateHQMarker();
+}
+function redrawGridSafe(){ try{ redrawGrid(); }catch(e){ console.warn(e); } }
+
+function setPlayerMarker(lat,lon){
+  if(!MAP) return;
+  if(playerMarker){ playerMarker.setLngLat([lon,lat]); }
+  else{
+    const el=document.createElement('div');
+    el.style.cssText='width:34px;height:44px;filter:drop-shadow(0 0 7px #d9a956cc)';
+    el.innerHTML=`<svg viewBox="0 0 34 44" xmlns="http://www.w3.org/2000/svg" width="34" height="44">
+  <defs>
+    <radialGradient id="pmSuit" cx="35%" cy="22%" r="80%">
+      <stop offset="0%" stop-color="#e0b46a"/>
+      <stop offset="55%" stop-color="#b8843a"/>
+      <stop offset="100%" stop-color="#7a5424"/>
+    </radialGradient>
+    <radialGradient id="pmEye" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#fff3d0"/>
+      <stop offset="45%" stop-color="#e8a23d"/>
+      <stop offset="100%" stop-color="#7a4a12" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <ellipse cx="17" cy="41.5" rx="9" ry="2.3" fill="#000" opacity="0.35"/>
+  <path d="M17 4 C10 4 7 9.5 7 15 L7 29 C7 33 11 36 17 36 C23 36 27 33 27 29 L27 15 C27 9.5 24 4 17 4 Z"
+    fill="url(#pmSuit)" stroke="#5c4528" stroke-width="1"/>
+  <path d="M9.5 16 L24.5 16 M9.5 22 L24.5 22 M9.5 28 L24.5 28" stroke="#7a5e38" stroke-width="0.6" opacity="0.6"/>
+  <path d="M9.5 14 C9.5 9.5 12.5 6.5 17 6.5 C21.5 6.5 24.5 9.5 24.5 14 L24.5 17.5 C24.5 13.5 21.5 10.8 17 10.8 C12.5 10.8 9.5 13.5 9.5 17.5 Z" fill="#caa066"/>
+  <circle cx="17" cy="15.5" r="4.4" fill="url(#pmEye)"/>
+  <circle cx="17" cy="15.5" r="1.7" fill="#fff3d0"/>
+  <line x1="22" y1="6" x2="25.5" y2="2" stroke="#7a5e38" stroke-width="1" stroke-linecap="round"/>
+  <circle cx="25.5" cy="1.6" r="1" fill="#e8a23d"/>
+  <rect x="14.5" y="24" width="5" height="5" rx="1" fill="#fffaf0" stroke="#f3c432" stroke-width="0.8"/>
+  <circle cx="22" cy="30" r="1" fill="#fff" opacity="0.9"/>
+  <circle cx="24.5" cy="33.5" r="0.7" fill="#fff" opacity="0.7"/>
+  <circle cx="20.5" cy="34" r="0.6" fill="#fff" opacity="0.6"/>
+</svg>`;
+    playerMarker=new maplibregl.Marker({element:el,anchor:'bottom'}).setLngLat([lon,lat]).addTo(MAP);
+  }
+}
+function updateHQMarker(){
+  if(!MAP||!_mapReady) return;
+  if(!S.user.hqGeohash){ if(hqMarker){ hqMarker.remove(); hqMarker=null; } return; }
+  const c=Geohash.decode(S.user.hqGeohash);
+  if(hqMarker){ hqMarker.setLngLat([c.lon,c.lat]); }
+  else{
+    const el=document.createElement('div');
+    el.style.cssText='font-size:26px;filter:drop-shadow(0 0 8px #d4a017cc)';
+    el.textContent='🏠';
+    hqMarker=new maplibregl.Marker({element:el,anchor:'bottom'}).setLngLat([c.lon,c.lat]).addTo(MAP);
+  }
+}
+function doGpsJump(){
+  if(!navigator.geolocation){ toast('位置情報が利用できません','error'); return; }
+  navigator.geolocation.getCurrentPosition(
+    pos=>{ const {latitude,longitude}=pos.coords; MAP.flyTo({center:[longitude,latitude],zoom:16,duration:900}); setPlayerMarker(latitude,longitude); },
+    ()=>toast('現在地を取得できませんでした','error'),
+    {enableHighAccuracy:true,timeout:10000}
+  );
+}
+
+/* ══════════ CHECKIN FLOW ══════════ */
+function doCheckin(e){
+  if(!navigator.geolocation){ toast('この端末では位置情報が利用できません','error'); return; }
+  spawnBtnRipple(e);
+  const btn=document.getElementById('checkin-btn');
+  btn.disabled=true; btn.textContent='📡 ...';
+  navigator.geolocation.getCurrentPosition(
+    pos=>processCheckin(pos.coords.latitude,pos.coords.longitude),
+    err=>{
+      if(err.code===1){
+        toast('位置情報が未許可のため地図中心を使用(テスト用)','info');
+        const c=MAP.getCenter(); processCheckin(c.lat,c.lng);
+      } else { resetCheckinBtn(); toast('位置情報の取得に失敗しました','error'); }
+    },
+    {enableHighAccuracy:true,timeout:12000,maximumAge:15000}
+  );
+}
+function resetCheckinBtn(){ const b=document.getElementById('checkin-btn'); b.disabled=false; b.textContent='🍬 チェックイン(砂糖を仕込む)'; }
+function spawnBtnRipple(e){
+  const btn=document.getElementById('checkin-btn'); if(!btn) return;
+  const r=document.createElement('span'); r.className='btn-ripple';
+  const rect=btn.getBoundingClientRect();
+  const size=Math.max(rect.width,rect.height);
+  const cx = (e&&e.clientX!==undefined) ? e.clientX-rect.left : rect.width/2;
+  const cy = (e&&e.clientY!==undefined) ? e.clientY-rect.top : rect.height/2;
+  r.style.cssText='width:'+size+'px;height:'+size+'px;left:'+(cx-size/2)+'px;top:'+(cy-size/2)+'px';
+  btn.appendChild(r); setTimeout(()=>r.remove(),600);
+}
+function floatGain(text){
+  const el=document.createElement('div');
+  el.className='float-gain'; el.textContent=text;
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(),1150);
+}
+function isTestMode(){ return !!(S && S.user && S.user.testMode); }
+function processCheckin(lat,lon){
+  const hash=Geohash.encode(lat,lon,PREC);
+  const c=Geohash.decode(hash);
+  const dist=haversine(lat,lon,c.lat,c.lon);
+  if(!isTestMode() && dist>CHECKIN_TOLERANCE_M){
+    resetCheckinBtn();
+    toast('もう少し陣地の中心に近づいてみよう(誤差約'+Math.round(dist)+'m)','info');
+    return;
+  }
+  checkDailyRollover();
+  const t=getOrCreateTerritory(hash);
+  const now=Date.now();
+  const sinceLast=now-(t.lastCheckinAt||0);
+  if(!isTestMode() && t.lastCheckinAt && sinceLast<HYSTERESIS_MS){
+    resetCheckinBtn();
+    toast('この陣地は処理済み。'+Math.ceil((HYSTERESIS_MS-sinceLast)/60000)+'分後に再度仕込もう','info');
+    save();
+    return;
+  }
+  const beforeLabel=stateLabel(t.penetration);
+  const mult=adjacencyMultiplier(hash);
+  const typeInfo=territoryTypeInfo(t);
+  const tm=timeMultiplier();
+  const gain=Math.round(PEN_PER_CHECKIN*mult*typeInfo.penMult*tm.pen);
+  t.penetration=clamp(t.penetration+gain,0,100);
+  t.lastCheckinAt=now; t.checkinCount=(t.checkinCount||0)+1;
+  const afterLabel=stateLabel(t.penetration);
+
+  const amount=Math.max(1, Math.round((TASK_MIN_AMOUNT+Math.floor(Math.random()*(TASK_MAX_AMOUNT-TASK_MIN_AMOUNT+1)))*typeInfo.taskMult) + (t.productionLevel||0));
+  S.tasks.push({id:uid(), sourceGeohash:hash, amount, status:'pending', createdAt:now, expiresAt:nextResetTimestamp(now)});
+
+  S.checkinLogs.unshift({geohash:hash, ts:now, lat, lon, gain, label:afterLabel});
+  if(S.checkinLogs.length>300) S.checkinLogs.length=300;
+
+  S.dailyMission.checkinDone=true;
+  S.exposure=clamp(S.exposure+15,0,100);
+  S.user.totalCheckins=(S.user.totalCheckins||0)+1;
+
+  const firstInspectorTip = afterLabel==='発症' && !S.user.inspectorTipShown;
+  if(firstInspectorTip) S.user.inspectorTipShown=true;
+
+  save();
+  setPlayerMarker(lat,lon);
+  if(MAP) MAP.panTo([lon,lat]);
+  redrawGridSafe();
+  resetCheckinBtn();
+  updateMapFooter();
+  updateExposureUI();
+  updateGuide();
+  vibrate([30,20,30]);
+
+  floatGain('+'+gain+'%');
+  toast(beforeLabel!==afterLabel ? '🍬 +'+gain+'% → '+afterLabel+'！' : '🍬 +'+gain+'% 浸透成功','success');
+  if(firstInspectorTip) setTimeout(()=>toast('⚠️ 発症段階(40-79%)は検査官に見つかるリスクあり','info'),1100);
+  setTimeout(checkProgress, firstInspectorTip ? 1700 : 900);
+}
+
+/* ══════════ HQ ══════════ */
+function registerHQ(hash){
+  const t=S.territories[hash];
+  if(!t || !t.checkinCount){ toast('一度チェックインした陣地のみ本拠地にできます','error'); return; }
+  S.user.hqGeohash=hash; save();
+  toast('🏠 本拠地を登録した: '+nameForHash(hash),'success');
+  redrawGridSafe(); updateMapFooter(); updateGuide();
+  if(document.getElementById('screen-detail').classList.contains('active')) renderDetail(hash);
+  if(document.getElementById('screen-hq').classList.contains('active')) renderHQ();
+  checkProgress();
+}
+function quickRegisterHQHere(){
+  if(!navigator.geolocation){ toast('位置情報が利用できません','error'); return; }
+  toast('📍 現在地を取得中...','info');
+  navigator.geolocation.getCurrentPosition(
+    pos=>{
+      const lat=pos.coords.latitude, lon=pos.coords.longitude;
+      const hash=Geohash.encode(lat,lon,PREC);
+      const t=S.territories[hash];
+      if(t && t.checkinCount>0){
+        registerHQ(hash);
+      } else {
+        toast('この地点は未チェックインのため、先にチェックインします','info');
+        processCheckin(lat,lon);
+        setTimeout(()=>{ if(S.territories[hash] && S.territories[hash].checkinCount) registerHQ(hash); },60);
+      }
+    },
+    ()=>toast('現在地を取得できませんでした','error'),
+    {enableHighAccuracy:true,timeout:10000}
+  );
+}
+function applyApBoost(hash){
+  if(!hash) return;
+  const t=S.territories[hash];
+  if(!t){ toast('まずチェックインが必要です','error'); return; }
+  if(t.penetration>=100){ toast('すでに完全寝返り済みです','info'); return; }
+  if((S.user.apPoints||0)<AP_BOOST_COST){ toast('解析ポイントが足りません(必要:'+AP_BOOST_COST+'AP)','error'); return; }
+  S.user.apPoints-=AP_BOOST_COST;
+  S.user.totalApSpent=(S.user.totalApSpent||0)+AP_BOOST_COST;
+  const beforeLabel=stateLabel(t.penetration);
+  t.penetration=clamp(t.penetration+AP_BOOST_AMOUNT,0,100);
+  const afterLabel=stateLabel(t.penetration);
+  save(); redrawGridSafe(); updateMapFooter();
+  if(document.getElementById('screen-detail').classList.contains('active')) renderDetail(hash);
+  toast('⚡ AP'+AP_BOOST_COST+'消費で浸透+'+AP_BOOST_AMOUNT+'%！','success');
+  if(beforeLabel!==afterLabel && STORY_LINES[afterLabel]) setTimeout(()=>toast('📖 '+STORY_LINES[afterLabel],'info'),700);
+  setTimeout(checkProgress,300);
+}
+function applyApImmunity(hash){
+  if(!hash) return;
+  const t=S.territories[hash];
+  if(!t){ toast('まずチェックインが必要です','error'); return; }
+  if((S.user.apPoints||0)<AP_IMMUNE_COST){ toast('解析ポイントが足りません(必要:'+AP_IMMUNE_COST+'AP)','error'); return; }
+  S.user.apPoints-=AP_IMMUNE_COST;
+  S.user.totalApSpent=(S.user.totalApSpent||0)+AP_IMMUNE_COST;
+  t.inspectorImmuneUntil=Date.now()+AP_IMMUNE_DURATION_MS;
+  save();
+  if(document.getElementById('screen-detail').classList.contains('active')) renderDetail(hash);
+  redrawGridSafe();
+  toast('🛡️ AP'+AP_IMMUNE_COST+'消費で10分間検査官対策を発動','success');
+  setTimeout(checkProgress,300);
+}
+function applyBandwidthUpgrade(hash){
+  if(!hash) return;
+  const t=S.territories[hash];
+  if(!t){ toast('まずチェックインが必要です','error'); return; }
+  if(!S.user.titles.seen['t_netmaster']){ toast('称号「通信網のマスター」を獲得すると使用できます','error'); return; }
+  if(t.bandwidthUpgraded){ toast('すでに帯域拡張済みです','info'); return; }
+  if((S.user.apPoints||0)<AP_BANDWIDTH_COST){ toast('解析ポイントが足りません(必要:'+AP_BANDWIDTH_COST+'AP)','error'); return; }
+  S.user.apPoints-=AP_BANDWIDTH_COST;
+  S.user.totalApSpent=(S.user.totalApSpent||0)+AP_BANDWIDTH_COST;
+  t.bandwidthUpgraded=true;
+  save();
+  if(document.getElementById('screen-detail').classList.contains('active')) renderDetail(hash);
+  toast('📡 AP'+AP_BANDWIDTH_COST+'消費で帯域を拡張した(送信上限'+NET_OUT_MAX_UPGRADED+'本)','success');
+  setTimeout(checkProgress,300);
+}
+function upgradeDefense(hash){
+  if(!hash) return;
+  const t=S.territories[hash];
+  if(!t){ toast('まずチェックインが必要です','error'); return; }
+  if((t.defenseLevel||0)>=UPGRADE_MAX_LEVEL){ toast('防衛力は最大レベルです','info'); return; }
+  const cost=UPGRADE_BASE_COST*((t.defenseLevel||0)+1);
+  if((S.user.apPoints||0)<cost){ toast('解析ポイントが足りません(必要:'+cost+'AP)','error'); return; }
+  S.user.apPoints-=cost;
+  S.user.totalApSpent=(S.user.totalApSpent||0)+cost;
+  t.defenseLevel=(t.defenseLevel||0)+1;
+  save();
+  if(document.getElementById('screen-detail').classList.contains('active')) renderDetail(hash);
+  toast('🛡️ AP'+cost+'消費で防衛力をLv.'+t.defenseLevel+'に強化した','success');
+  setTimeout(checkProgress,300);
+}
+function upgradeProduction(hash){
+  if(!hash) return;
+  const t=S.territories[hash];
+  if(!t){ toast('まずチェックインが必要です','error'); return; }
+  if((t.productionLevel||0)>=UPGRADE_MAX_LEVEL){ toast('生産力は最大レベルです','info'); return; }
+  const cost=UPGRADE_BASE_COST*((t.productionLevel||0)+1);
+  if((S.user.apPoints||0)<cost){ toast('解析ポイントが足りません(必要:'+cost+'AP)','error'); return; }
+  S.user.apPoints-=cost;
+  S.user.totalApSpent=(S.user.totalApSpent||0)+cost;
+  t.productionLevel=(t.productionLevel||0)+1;
+  save();
+  if(document.getElementById('screen-detail').classList.contains('active')) renderDetail(hash);
+  toast('🏭 AP'+cost+'消費で生産力をLv.'+t.productionLevel+'に強化した','success');
+  setTimeout(checkProgress,300);
+}
+function resetProgress(){
+  const sure=confirm('本当に全ての進行状況をリセットしますか？\nこの操作は取り消せません。');
+  if(!sure) return;
+  try{ localStorage.removeItem(LS_KEY); }catch(e){}
+  location.reload();
+}
+function buyStreakTicket(){
+  if((S.user.apPoints||0)<AP_STREAK_TICKET_COST){ toast('解析ポイントが足りません(必要:'+AP_STREAK_TICKET_COST+'AP)','error'); return; }
+  S.user.apPoints-=AP_STREAK_TICKET_COST;
+  S.user.totalApSpent=(S.user.totalApSpent||0)+AP_STREAK_TICKET_COST;
+  S.streak.bonusProtection=(S.streak.bonusProtection||0)+1;
+  save(); renderHQ();
+  toast('🍬 ストリーク保護チケットを購入した(所持:'+S.streak.bonusProtection+'枚)','success');
+  setTimeout(checkProgress,300);
+}
+function pendingTasksSummary(){
+  const pend=S.tasks.filter(t=>t.status==='pending');
+  return {count:pend.length, amount:pend.reduce((s,t)=>s+t.amount,0)};
+}
+function estimateTaskReward(){
+  const pend=S.tasks.filter(t=>t.status==='pending');
+  const amount=pend.reduce((s,t)=>s+t.amount,0);
+  const connectedBonus=Object.keys(S.territories).filter(h=>isConnectedToHQ(h)).length;
+  const hubBonus=Object.keys(S.territories).filter(h=>isHubTerritory(h)&&isConnectedToHQ(h)).length*2;
+  const parkBonus=pend.reduce((s,t)=>{
+    const terr=S.territories[t.sourceGeohash]; const info=terr&&territoryTypeInfo(terr);
+    return s+((info&&info.apBonus)?info.apBonus:0);
+  },0);
+  const raw=amount*2+connectedBonus+hubBonus+parkBonus;
+  return {total:Math.round(raw*ascensionMultiplier()), connectedBonus, hubBonus, parkBonus, base:amount*2};
+}
+/* ══════════ プレステージ/覚醒システム ══════════ */
+function ascensionMultiplier(){ return 1+(S.user.ascensionCount||0)*0.05; }
+function ascensionEligible(){ return TITLE_DEFS.every(t=>S.user.titles.seen[t.id]); }
+function ascend(){
+  if(!ascensionEligible()){ toast('全ての称号を獲得すると覚醒できます','error'); return; }
+  const sure=confirm('覚醒すると陣地・タスク・通信網・ストリークなどの進行がリセットされます。\n称号・コレクション・覚醒回数は保持されます。\n本当に覚醒しますか？');
+  if(!sure) return;
+  const newCount=(S.user.ascensionCount||0)+1;
+  const keepUser={
+    id:S.user.id, name:S.user.name, createdAt:S.user.createdAt,
+    titles:S.user.titles, seenHints:S.user.seenHints, collectibles:S.user.collectibles,
+    totalCheckins:0, totalApSpent:0, totalTasksProcessed:0,
+    apPoints:0, hqGeohash:null, testMode:false, tutorialDone:true, inspectorTipShown:true,
+    ascensionCount:newCount, lastActive:Date.now(),
+  };
+  const keepStory=S.story;
+  S={
+    user:keepUser, territories:{}, checkinLogs:[], tasks:[],
+    streak:{current:0, lastGameDate:null, protectionUsedThisMonth:0, protectionResetMonth:monthKey(), bonusProtection:0},
+    dailyMission:{gameDate:gameDateKey(), loginDone:true, checkinDone:false, taskDone:false},
+    weeklyMission:null,
+    lastInspectorTick:Date.now(), lastSeveranceTick:Date.now(),
+    exposure:0, story:keepStory, connections:[],
+  };
+  save();
+  toast('✨ 覚醒した！(覚醒'+newCount+'回目) 永続でAP獲得+'+(newCount*5)+'%','success');
+  setTimeout(()=>location.reload(),1200);
+}
+function processTasks(){
+  if(!S.user.hqGeohash){ toast('先に本拠地を登録してください','error'); return; }
+  const pend=S.tasks.filter(t=>t.status==='pending');
+  if(pend.length===0){ toast('処理待ちのシュガー粒がありません','info'); return; }
+  showDecryptOverlay(()=>{
+    const {total:reward, connectedBonus, hubBonus, parkBonus}=estimateTaskReward();
+    pend.forEach(t=>t.status='processed');
+    S.user.apPoints+=reward;
+    S.dailyMission.taskDone=true;
+    S.user.totalTasksProcessed=(S.user.totalTasksProcessed||0)+1;
+    save();
+    let bonusNote='';
+    if(connectedBonus>0) bonusNote+='(通信網+'+connectedBonus+')';
+    if(hubBonus>0) bonusNote+='(中継基地+'+hubBonus+')';
+    if(parkBonus>0) bonusNote+='(公園+'+parkBonus+')';
+    toast('🔓 解析完了！解析ポイント+'+reward+'AP獲得'+bonusNote,'success');
+    renderHQ();
+    updateMapFooter();
+    updateGuide();
+    setTimeout(checkProgress,200);
+  });
+}
+
+/* ══════════ SCREENS ══════════ */
+let currentScreenId='login';
+function show(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  const scr=document.getElementById('screen-'+id);
+  scr.classList.add('active');
+  scr.scrollTop=0;
+  currentScreenId=id;
+  if(id==='map'){ setTimeout(()=>{ if(MAP){ MAP.resize(); redrawGridSafe(); } },80); updateMapFooter(); updateExposureUI(); updateStreakHeader(); updateGuide(); }
+  if(id==='hq'){ renderHQ(); }
+  if(id==='network'){ netSelected=null; netPendingFrom=null; renderNetwork();
+    setTimeout(()=>showHintOnce('network','ノードを1つタップして「接続を始める」→もう1つタップして接続先を選ぼう。接続元は最大5本、接続先は1本まで。'),400); }
+  updateBottomNavActive();
+}
+function updateBottomNavActive(){
+  document.querySelectorAll('#bottom-nav .bn-btn').forEach(b=>{
+    const tgt=b.dataset.target;
+    let active=false;
+    if(tgt==='map') active = currentScreenId==='map';
+    else if(tgt==='network') active = currentScreenId==='network';
+    else if(tgt && tgt.indexOf('hq')===0) active = currentScreenId==='hq' && currentHQTab===parseInt(tgt.replace('hq',''),10);
+    b.classList.toggle('active', active);
+  });
+}
+let currentHash=null;
+function openDetail(hash){ currentHash=hash; renderDetail(hash); show('detail'); }
+
+function renderDetail(hash){
+  const t=S.territories[hash];
+  const isHQ = S.user.hqGeohash===hash;
+  let html='';
+  if(!t){
+    html='<div class="card"><div class="prop-name">'+esc(nameForHash(hash))+'</div>'
+      +'<div class="prop-hash">'+hash+'</div>'
+      +'<div class="empty-state"><div class="icon">☕</div>まだ浸透していない陣地。<br>チェックインして最初の一さじを仕込もう。</div></div>';
+    document.getElementById('detail-body').innerHTML=html;
+    return;
+  }
+  const label=stateLabel(t.penetration), color=stateColor(t.penetration);
+  const immune = t.inspectorImmuneUntil && Date.now()<t.inspectorImmuneUntil;
+  const risky = !immune && t.penetration>=INSPECTOR_MIN && t.penetration<=INSPECTOR_MAX;
+  const adjCnt=adjacentConvertedCount(hash);
+  const typeInfo=territoryTypeInfo(t);
+  html+='<div class="card">'
+    +'<div class="prop-name">'+esc(nameForHash(hash))+(isHQ?' 🏠':'')+' <span style="font-size:12px;color:var(--text-dim)">'+typeInfo.emoji+typeInfo.label+'</span></div>'
+    +'<div class="prop-hash">'+hash+'</div>'
+    +'<span class="state-badge" style="background:'+color+';color:#1c1209">'+label+'</span>'
+    +'<div class="pen-bar-wrap"><div class="pen-bar"><div class="pen-fill" style="width:'+t.penetration+'%;background:'+color+'"></div></div></div>'
+    +'<div class="stat-row"><span class="stat-label">浸透度</span><span class="stat-val">'+t.penetration+'%</span></div>'
+    +'<div class="stat-row"><span class="stat-label">チェックイン回数</span><span class="stat-val">'+(t.checkinCount||0)+'回</span></div>'
+    +'<div class="stat-row"><span class="stat-label">防衛Lv / 生産Lv</span><span class="stat-val">'+(t.defenseLevel||0)+'/'+UPGRADE_MAX_LEVEL+' ・ '+(t.productionLevel||0)+'/'+UPGRADE_MAX_LEVEL+'</span></div>'
+    +'<div class="stat-row"><span class="stat-label">隣接ボーナス</span><span class="stat-val">'+(adjCnt>=2?'×1.20 (隣接'+adjCnt+')':adjCnt>=1?'×1.10 (隣接1)':'なし')+'</span></div>'
+    +'<div class="stat-row"><span class="stat-label">最終チェックイン</span><span class="stat-val">'+(t.lastCheckinAt?fmtTime(t.lastCheckinAt):'-')+'</span></div>';
+  if(risky){
+    html+='<div class="risk-note">🚨 検査官リスク窓(発症段階)に入っています。巡回に注意。</div>';
+  } else if(immune){
+    html+='<div class="risk-note" style="color:var(--success)">🛡️ 検査官対策が有効中('+Math.ceil((t.inspectorImmuneUntil-Date.now())/60000)+'分)</div>';
+  }
+  html+='</div>';
+  html+='<div class="card">';
+  if(isHQ){
+    html+='<div class="stat-row"><span class="stat-label">本拠地</span><span class="stat-val" style="color:var(--gold)">✅ 登録済み</span></div>';
+  } else if(t.checkinCount>0){
+    html+='<button class="btn btn-gold" data-action="register-hq">🏠 ここを本拠地にする</button>';
+  } else {
+    html+='<div class="stat-label" style="font-size:12px">本拠地にするには、まず一度チェックインが必要です。</div>';
+  }
+  html+='</div>';
+  if(t.checkinCount>0){
+    html+='<div class="card"><div class="section-title">解析ポイント(AP)を使う ('+(S.user.apPoints||0)+'AP所持)</div>';
+    if(t.penetration<100){
+      html+='<div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">⚡ 浸透強化</div>'
+        +'<div style="margin-bottom:10px"><button class="btn btn-dim'+((S.user.apPoints||0)<AP_BOOST_COST?' btn-soft':'')+'" data-action="ap-boost">⚡ AP'+AP_BOOST_COST+'で浸透+'+AP_BOOST_AMOUNT+'%ブースト</button></div>';
+    }
+    if(!immune || (t.defenseLevel||0)<UPGRADE_MAX_LEVEL){
+      const defCost=UPGRADE_BASE_COST*((t.defenseLevel||0)+1);
+      html+='<div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">🛡️ 防衛</div>';
+      if(!immune){
+        html+='<div style="margin-bottom:6px"><button class="btn btn-dim'+((S.user.apPoints||0)<AP_IMMUNE_COST?' btn-soft':'')+'" data-action="ap-immune">🛡️ AP'+AP_IMMUNE_COST+'で検査官対策(10分)</button></div>';
+      }
+      if((t.defenseLevel||0)<UPGRADE_MAX_LEVEL){
+        html+='<div style="margin-bottom:10px"><button class="btn btn-dim'+((S.user.apPoints||0)<defCost?' btn-soft':'')+'" data-action="upgrade-defense">🛡️ AP'+defCost+'で防衛力強化(Lv.'+(t.defenseLevel||0)+'→'+((t.defenseLevel||0)+1)+')</button></div>';
+      }
+    }
+    if((t.productionLevel||0)<UPGRADE_MAX_LEVEL){
+      const prodCost=UPGRADE_BASE_COST*((t.productionLevel||0)+1);
+      html+='<div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">🏭 生産</div>'
+        +'<div style="margin-bottom:10px"><button class="btn btn-dim'+((S.user.apPoints||0)<prodCost?' btn-soft':'')+'" data-action="upgrade-production">🏭 AP'+prodCost+'で生産力強化(Lv.'+(t.productionLevel||0)+'→'+((t.productionLevel||0)+1)+')</button></div>';
+    }
+    if(!t.bandwidthUpgraded && S.user.titles.seen['t_netmaster']){
+      html+='<div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">📡 通信</div>'
+        +'<button class="btn btn-dim'+((S.user.apPoints||0)<AP_BANDWIDTH_COST?' btn-soft':'')+'" data-action="ap-bandwidth">📡 AP'+AP_BANDWIDTH_COST+'で帯域拡張(送信上限'+NET_OUT_MAX_UPGRADED+'本)</button>';
+    } else if(t.bandwidthUpgraded){
+      html+='<div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">📡 通信</div>'
+        +'<div class="stat-row"><span class="stat-label">帯域拡張</span><span class="stat-val" style="color:var(--gold)">📡 適用済み(送信上限'+NET_OUT_MAX_UPGRADED+'本)</span></div>';
+    }
+    html+='</div>';
+  }
+  document.getElementById('detail-body').innerHTML=html;
+}
+
+let currentHQTab=0;
+function renderHQ(){
+  renderHQBody();
+}
+/* ══════════ 通信網スクリーン(本拠地限定機能) ══════════ */
+let netSelected=null, netPendingFrom=null;
+function openNetworkDirect(){
+  if(!S.user.hqGeohash){
+    toast('先に本拠地を登録する必要があります','error');
+    currentHQTab=0; show('hq');
+    return;
+  }
+  show('network');
+}
+function visitedTerritoryHashes(){
+  return Object.keys(S.territories).filter(h=>S.territories[h].checkinCount>0);
+}
+function projectNodes(hashes,w,h,pad){
+  const pts=hashes.map(hh=>{ const c=Geohash.decode(hh); return {hash:hh, lat:c.lat, lon:c.lon}; });
+  if(pts.length===0) return {};
+  let minLat=Math.min(...pts.map(p=>p.lat)), maxLat=Math.max(...pts.map(p=>p.lat));
+  let minLon=Math.min(...pts.map(p=>p.lon)), maxLon=Math.max(...pts.map(p=>p.lon));
+  if(maxLat-minLat<1e-6){minLat-=0.0005;maxLat+=0.0005;}
+  if(maxLon-minLon<1e-6){minLon-=0.0005;maxLon+=0.0005;}
+  const out={};
+  pts.forEach(p=>{
+    const nx=(p.lon-minLon)/(maxLon-minLon), ny=(p.lat-minLat)/(maxLat-minLat);
+    out[p.hash]={x:pad+nx*(w-pad*2), y:(h-pad)-ny*(h-pad*2)};
+  });
+  resolveNodeOverlap(out, w, h, pad);
+  return out;
+}
+function resolveNodeOverlap(pos, w, h, pad){
+  const keys=Object.keys(pos);
+  const minDist=24;
+  for(let pass=0; pass<6; pass++){
+    let moved=false;
+    for(let i=0;i<keys.length;i++){
+      for(let j=i+1;j<keys.length;j++){
+        const a=pos[keys[i]], b=pos[keys[j]];
+        let dx=b.x-a.x, dy=b.y-a.y;
+        let dist=Math.sqrt(dx*dx+dy*dy);
+        if(dist<1){ dx=(Math.random()-0.5); dy=(Math.random()-0.5); dist=0.01; }
+        if(dist<minDist){
+          const push=(minDist-dist)/2;
+          const ux=dx/dist, uy=dy/dist;
+          a.x=clamp(a.x-ux*push, pad, w-pad);
+          a.y=clamp(a.y-uy*push, pad, h-pad);
+          b.x=clamp(b.x+ux*push, pad, w-pad);
+          b.y=clamp(b.y+uy*push, pad, h-pad);
+          moved=true;
+        }
+      }
+    }
+    if(!moved) break;
+  }
+}
+function renderNetwork(){
+  const ap=S.user.apPoints||0;
+  document.getElementById('net-ap-val').textContent=ap;
+  const visited=visitedTerritoryHashes();
+  const avgPen=visited.length? Math.round(visited.reduce((s,h)=>s+S.territories[h].penetration,0)/visited.length):0;
+  document.getElementById('sw-bar-fill').style.width=clamp(avgPen/SWEETNESS_GOAL*100,0,100)+'%';
+  document.getElementById('sw-bar-text').textContent='SWEETNESS: '+avgPen+'% / '+SWEETNESS_GOAL+'%';
+  const expNote=document.getElementById('net-exposure-note');
+  if(expNote) expNote.textContent='通信網が大きいほど露出度の下限が上がる(現在の下限:'+networkExposureBase()+')';
+
+  const wrap=document.getElementById('net-graph-wrap');
+  if(visited.length===0){
+    wrap.innerHTML='<div class="netscr-empty">チェックイン済みの陣地がまだありません。<br>マップで陣地に浸透してから、ここで通信経路を構築しよう。</div>';
+    document.getElementById('net-panel').innerHTML='';
+    return;
+  }
+  const W=280,H=Math.max(220,wrap.clientHeight||260),PAD=28;
+  const pos=projectNodes(visited,W,H,PAD);
+  let svg='<svg viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg">'
+    +'<defs><marker id="netArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">'
+    +'<path d="M0,0 L10,5 L0,10 Z" fill="#d9a956"/></marker></defs>';
+  S.connections.forEach(c=>{
+    if(!pos[c[0]]||!pos[c[1]]) return;
+    const a=pos[c[0]], b=pos[c[1]];
+    svg+='<line class="net-edge-glow" x1="'+a.x+'" y1="'+a.y+'" x2="'+b.x+'" y2="'+b.y+'"/>';
+    svg+='<line class="net-edge" x1="'+a.x+'" y1="'+a.y+'" x2="'+b.x+'" y2="'+b.y+'" marker-end="url(#netArrow)"/>';
+  });
+  visited.forEach(h=>{
+    const p=pos[h]; if(!p) return;
+    const t=S.territories[h];
+    const isHQ=h===S.user.hqGeohash;
+    const r=isHQ?11:8;
+    const color=stateColor(t.penetration);
+    svg+='<g class="net-node" data-hash="'+h+'">';
+    if(isHQ) svg+='<circle class="net-node-ring-hq" cx="'+p.x+'" cy="'+p.y+'" r="'+(r+4)+'"/>';
+    else if(isHubTerritory(h)) svg+='<circle class="net-node-ring-hub" cx="'+p.x+'" cy="'+p.y+'" r="'+(r+4)+'"/>';
+    svg+='<circle cx="'+p.x+'" cy="'+p.y+'" r="'+r+'" fill="'+color+'" stroke="'+(isConnectedToHQ(h)?'#d9a956':'#4a3a26')+'" stroke-width="1.6"/>';
+    svg+='<text x="'+p.x+'" y="'+(p.y+r+11)+'" text-anchor="middle" font-size="8" fill="#a89878">'+(isHQ?'HQ':h.slice(-3))+'</text>';
+    if(netSelected===h || netPendingFrom===h) svg+='<circle class="net-node-ring-sel" cx="'+p.x+'" cy="'+p.y+'" r="'+(r+5)+'"/>';
+    svg+='</g>';
+  });
+  svg+='</svg>';
+  wrap.innerHTML=svg;
+  renderNetPanel();
+}
+function renderNetPanel(){
+  const panel=document.getElementById('net-panel');
+  if(!netSelected){
+    panel.innerHTML='<div class="netscr-empty">ノードをタップして選択しよう</div>';
+    return;
+  }
+  const h=netSelected, t=S.territories[h];
+  const isHQ=h===S.user.hqGeohash;
+  const isHub=!isHQ&&isHubTerritory(h);
+  const connected=isConnectedToHQ(h);
+  const hop=hopDistanceFromHQ(h);
+  const outDeg=outDegree(h), inDeg=inDegree(h), maxOut=outDegreeMax(h);
+  const tInfo=territoryTypeInfo(t);
+  let html='<div class="netscr-name">'+(isHQ?'🏠 本拠地':esc(nameForHash(h))+' <span style="font-size:11px;color:var(--text-dim)">'+tInfo.emoji+tInfo.label+'</span>')+(isHub?' <span style="color:var(--success);font-size:11px">🏭中継基地</span>':'')+'</div>'
+    +'<div class="netscr-sub">'+h+(connected&&!isHQ?' ・ HQまで'+hop+'ホップ':'')+'</div>'
+    +'<div class="net-stats-grid">'
+    +'<div class="net-stat"><div class="net-stat-label">Sweetness</div><div class="net-stat-val">'+t.penetration+'%</div></div>'
+    +'<div class="net-stat"><div class="net-stat-label">Security</div><div class="net-stat-val">'+(t.penetration>=INSPECTOR_MIN&&t.penetration<=INSPECTOR_MAX?'警戒':'平常')+'</div></div>'
+    +'<div class="net-stat"><div class="net-stat-label">送信/受信</div><div class="net-stat-val">'+outDeg+'/'+maxOut+'・'+inDeg+'/'+NET_IN_MAX+'</div></div>'
+    +'<div class="net-stat"><div class="net-stat-label">HQ Link</div><div class="net-stat-val" style="color:'+(connected?'#d9a956':'#9a8f7c')+'">'+(connected?'済':'未')+'</div></div>'
+    +'</div>';
+
+  if(netPendingFrom && netPendingFrom!==h){
+    const chk=canConnect(netPendingFrom,h);
+    const fromConnected=isConnectedToHQ(netPendingFrom);
+    const toConnected=isConnectedToHQ(h);
+    let preview;
+    if(toConnected) preview='すでにHQへ到達済み';
+    else if(fromConnected) preview='📡 接続後、HQへ到達可能になる(接続元から+1ホップ)';
+    else preview='⚠️ 接続元がまだHQに到達していないため、これだけでは繋がらない';
+    html+='<div class="netscr-empty" style="padding:6px 0">'+preview+'</div>';
+    html+='<button class="btn-net'+(chk.ok?'':' btn-soft')+'" id="net-confirm-btn">🔗 '+(chk.ok?'接続する (AP'+AP_CONNECT_COST+')':chk.reason)+'</button>';
+    html+='<button class="btn-net-cancel" id="net-cancel-btn">✕ キャンセル</button>';
+  } else if(netPendingFrom===h){
+    html+='<div class="netscr-empty">接続先のノードをタップしてください</div>';
+    html+='<button class="btn-net-cancel" id="net-cancel-btn">✕ キャンセル</button>';
+  } else {
+    const eligible = outDeg<maxOut && t.checkinCount>0;
+    html+='<button class="btn-net'+(eligible?'':' btn-soft')+'" id="net-start-btn">🔗 '+(eligible?'ここから接続を始める(送信元)':'送信元として'+maxOut+'本接続済みです')+'</button>';
+  }
+  panel.innerHTML=html;
+}
+function renderHQBody(){
+  const body=document.getElementById('hq-body');
+  if(currentHQTab===0) body.innerHTML=renderHQTaskTab();
+  else if(currentHQTab===1) body.innerHTML=renderHQMissionTab();
+  else if(currentHQTab===2) body.innerHTML=renderHQStoryTab();
+  else if(currentHQTab===3) body.innerHTML=renderHQTestTab();
+  else body.innerHTML=renderHQProfileTab();
+}
+function renderHQTaskTab(){
+  const sum=pendingTasksSummary();
+  const hqName = S.user.hqGeohash ? nameForHash(S.user.hqGeohash) : null;
+  let html='<div class="card">'
+    +'<div class="section-title">本拠地ステータス</div>'
+    +'<div class="stat-row"><span class="stat-label">登録陣地</span><span class="stat-val" style="color:'+(hqName?'var(--gold)':'var(--danger)')+'">'+(hqName||'未登録')+'</span></div>'
+    +'<div class="stat-row"><span class="stat-label">解析ポイント(AP)</span><span class="stat-val" style="color:var(--accent)">'+S.user.apPoints+'AP</span></div>'
+    +'<div style="margin-top:12px"><button class="btn btn-dim" id="quick-hq-btn">📍 現在地を本拠地にする</button></div>'
+    +'<div style="margin-top:8px"><button class="btn btn-dim'+(!S.user.hqGeohash?' btn-soft':'')+'" id="open-network-btn">🕸️ 通信網を開く ('+S.connections.length+'本接続済み)</button></div>'
+    +(S.user.hqGeohash?'<div class="stat-row" style="margin-top:8px"><span class="stat-label">通信網の状態</span><span class="stat-val" style="color:'+(hasRecentSeverance()||countDecayingTerritories()>0?'var(--danger)':'var(--success)')+'">'+(hasRecentSeverance()?'✂️ 経路遮断あり':countDecayingTerritories()>0?'📦 '+countDecayingTerritories()+'箇所が減衰中':'良好')+'</span></div>':'')
+    +'</div>';
+  const est=estimateTaskReward();
+  html+='<div class="card">'
+    +'<div class="section-title">未処理のシュガー粒(暗号データ)</div>'
+    +'<div class="stat-row"><span class="stat-label">件数</span><span class="stat-val">'+sum.count+'件</span></div>'
+    +'<div class="stat-row"><span class="stat-label">合計量</span><span class="stat-val">'+sum.amount+'粒</span></div>'
+    +'<div class="stat-row"><span class="stat-label">本日の獲得AP見込み</span><span class="stat-val" style="color:var(--accent)">'+est.total+'AP'+(est.connectedBonus||est.hubBonus||est.parkBonus?' (通信網+'+est.connectedBonus+(est.hubBonus?'/中継+'+est.hubBonus:'')+(est.parkBonus?'/公園+'+est.parkBonus:'')+')':'')+'</span></div>'
+    +'<div style="margin-top:14px"><button class="btn btn-gold'+(!S.user.hqGeohash||sum.count===0?' btn-soft':'')+'" id="process-tasks-btn">🔓 暗号データを解析する(処理する)</button></div>'
+    +'</div>';
+  if(!S.user.hqGeohash){
+    html+='<div class="empty-state"><div class="icon">🏠</div>マップで一度チェックインした陣地を選んで「ここを本拠地にする」、<br>または上の「📍 現在地を本拠地にする」から登録しよう。</div>';
+  }
+  return html;
+}
+function renderHQStoryTab(){
+  const log=S.story.log||[];
+  if(log.length===0) return '<div class="empty-state"><div class="icon">📖</div>物語はまだ進んでいない。<br>チェックインして潜入を進めよう。</div>';
+  let html='<div class="card"><div class="section-title">解放済みの物語('+log.length+'/'+STORY_EVENTS.length+')</div>';
+  log.forEach(l=>{
+    html+='<div class="log-item" style="display:block"><div style="display:flex;justify-content:space-between"><span style="font-weight:700">'+l.icon+' '+esc(l.title)+'</span><span class="log-time">'+fmtTime(l.ts)+'</span></div>'
+      +'<div style="color:var(--text-dim);font-size:12px;margin-top:4px">'+esc(l.body)+'</div></div>';
+  });
+  html+='</div>';
+  return html;
+}
+function renderHQTestTab(){
+  const on=isTestMode();
+  let html='<div class="card">'
+    +'<div class="section-title">テストモード</div>'
+    +'<div class="stat-row"><span class="stat-label">状態</span><span class="stat-val" style="color:'+(on?'var(--danger)':'var(--text-dim)')+'">'+(on?'ON':'OFF')+'</span></div>'
+    +'<div style="font-size:11px;color:var(--text-dim);line-height:1.7;margin:8px 0">ONの間は距離検証(誤差'+CHECKIN_TOLERANCE_M+'m)とヒステリシス('+(HYSTERESIS_MS/60000)+'分)を無視して、何度でも・どの座標でもチェックインできます。</div>'
+    +'<button class="btn '+(on?'btn-danger':'btn-gold')+'" id="toggle-testmode-btn">'+(on?'🧪 テストモードをOFFにする':'🧪 テストモードをONにする')+'</button>'
+    +'</div>';
+  html+='<div class="card">'
+    +'<div class="section-title">座標を指定してチェックイン</div>'
+    +'<div class="form-group"><label>緯度(lat)</label><input type="text" id="test-lat" placeholder="例: 35.8624" value="35.8624"></div>'
+    +'<div class="form-group"><label>経度(lon)</label><input type="text" id="test-lon" placeholder="例: 139.6360" value="139.6360"></div>'
+    +'<button class="btn btn-primary" id="test-checkin-btn">🧪 この座標でチェックイン</button>'
+    +'</div>';
+  html+='<div class="card"><div class="section-title">侵入ログ(最大100行・内部スクロール)</div>'
+    +'<div style="max-height:260px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:0 10px">'
+    +renderLogList()+'</div></div>';
+  return html;
+}
+function renderLogList(){
+  if(S.checkinLogs.length===0) return '<div class="netscr-empty" style="color:var(--text-dim)">侵入ログはまだありません。</div>';
+  let html='';
+  S.checkinLogs.slice(0,100).forEach(l=>{
+    if(l.type==='inspector'){
+      html+='<div class="log-item"><span style="color:var(--danger)">🚨 '+esc(nameForHash(l.geohash))+' '+esc(l.note||'検査官来訪')+'</span><span class="log-time">'+fmtTime(l.ts)+'</span></div>';
+    } else if(l.type==='severed'){
+      html+='<div class="log-item"><span style="color:var(--danger)">✂️ '+esc(l.note)+'</span><span class="log-time">'+fmtTime(l.ts)+'</span></div>';
+    } else if(l.type==='reconquest'){
+      html+='<div class="log-item"><span style="color:var(--danger)">⚔️ '+esc(l.note)+'</span><span class="log-time">'+fmtTime(l.ts)+'</span></div>';
+    } else if(l.note){
+      html+='<div class="log-item"><span style="color:var(--text-dim)">⏳ '+esc(nameForHash(l.geohash))+' '+esc(l.note)+'</span><span class="log-time">'+fmtTime(l.ts)+'</span></div>';
+    } else {
+      html+='<div class="log-item"><span>🍬 '+esc(nameForHash(l.geohash))+' +'+l.gain+'% → '+esc(l.label||'')+'</span><span class="log-time">'+fmtTime(l.ts)+'</span></div>';
+    }
+  });
+  return html;
+}
+function renderHQProfileTab(){
+  setTimeout(()=>showHintOnce('profile','称号は活動量に応じて自動で獲得できる。スキルの使い方が分からない時はここを見返そう。'),300);
+  const earned=TITLE_DEFS.filter(t=>S.user.titles.seen[t.id]);
+  const featured = S.user.titles.list[0] || null;
+  let html='<div class="card">'
+    +'<div class="section-title">プロフィール</div>'
+    +'<div class="stat-row"><span class="stat-label">名前</span><span class="stat-val">'+esc(S.user.name)+'</span></div>'
+    +'<div class="stat-row"><span class="stat-label">称号</span><span class="stat-val" style="color:var(--gold)">'+(featured?featured.icon+' '+esc(featured.name):'称号なし')+'</span></div>'
+    +'<div class="stat-row"><span class="stat-label">取得称号数</span><span class="stat-val">'+earned.length+' / '+TITLE_DEFS.length+'</span></div>'
+    +'<div class="stat-row"><span class="stat-label">通算チェックイン</span><span class="stat-val">'+(S.user.totalCheckins||0)+'回</span></div>'
+    +'<div class="stat-row"><span class="stat-label">完全寝返り陣地</span><span class="stat-val">'+countConverted()+'</span></div>'
+    +'<div class="stat-row"><span class="stat-label">解析ポイント活用合計</span><span class="stat-val">'+(S.user.totalApSpent||0)+'AP</span></div>'
+    +'</div>';
+  html+='<div class="card"><div class="section-title">称号一覧</div>';
+  TITLE_DEFS.forEach(t=>{
+    const got=!!S.user.titles.seen[t.id];
+    html+='<div class="log-item" style="display:block;opacity:'+(got?'1':'.45')+'">'
+      +'<div style="display:flex;justify-content:space-between"><span style="font-weight:700">'+t.icon+' '+esc(t.name)+'</span><span class="log-time" style="color:'+(got?'var(--gold)':'var(--text-dim)')+'">'+(got?'獲得済み':'未獲得')+'</span></div>'
+      +'<div style="color:var(--text-dim);font-size:12px;margin-top:2px">'+esc(t.desc)+'</div></div>';
+  });
+  html+='</div>';
+  html+='<div class="card"><div class="section-title">スキル(AP活用技)</div>';
+  getSkillDefs().forEach(s=>{
+    const locked = s.requiresTitle && !S.user.titles.seen[s.requiresTitle];
+    const titleName = s.requiresTitle ? (TITLE_DEFS.find(t=>t.id===s.requiresTitle)||{}).name : null;
+    html+='<div class="log-item" style="display:block;opacity:'+(locked?'.5':'1')+'">'
+      +'<div style="display:flex;justify-content:space-between"><span style="font-weight:700">'+(locked?'🔒 ':'')+s.icon+' '+esc(s.name)+'</span><span class="log-time">AP'+s.cost+'</span></div>'
+      +'<div style="color:var(--text-dim);font-size:12px;margin-top:2px">'+(locked?'称号「'+esc(titleName)+'」が必要':esc(s.desc))+'</div></div>';
+  });
+  html+='</div>';
+  const cgot=COLLECTIBLE_DEFS.filter(c=>S.user.collectibles.seen[c.id]).length;
+  html+='<div class="card"><div class="section-title">📦 コレクション('+cgot+'/'+COLLECTIBLE_DEFS.length+')</div><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">';
+  COLLECTIBLE_DEFS.forEach(c=>{
+    const got=!!S.user.collectibles.seen[c.id];
+    html+='<div style="text-align:center;opacity:'+(got?'1':'.35')+'"><div style="font-size:22px">'+(got?c.icon:'❓')+'</div>'
+      +'<div style="font-size:9px;color:var(--text-dim);margin-top:2px">'+(got?esc(c.name):'未入手')+'</div></div>';
+  });
+  html+='</div></div>';
+  html+='<div class="card"><div class="section-title">🏆 ランキング(参考・オフライン)</div>';
+  const myConverted=countConverted();
+  const rivals=DUMMY_RIVALS.map(r=>({name:r.name, converted:r.converted, isPlayer:false}));
+  rivals.push({name:S.user.name, converted:myConverted, isPlayer:true});
+  rivals.sort((a,b)=>b.converted-a.converted);
+  rivals.forEach((r,i)=>{
+    html+='<div class="stat-row" style="'+(r.isPlayer?'color:var(--gold);font-weight:700':'')+'"><span class="stat-label" style="color:inherit">'+(i+1)+'位　'+esc(r.name)+(r.isPlayer?'(あなた)':'')+'</span><span class="stat-val" style="color:inherit">'+r.converted+'陣地</span></div>';
+  });
+  html+='</div>';
+  html+='<div class="card">'
+    +'<div class="section-title">開発者・テストツール</div>'
+    +'<div style="font-size:11px;color:var(--text-dim);margin-bottom:8px">テストモード・座標指定チェックイン・侵入ログ(最大100行)はこちらから確認できます。</div>'
+    +'<button class="btn btn-dim" id="open-test-tab-btn">🧪 テストツールを開く</button>'
+    +'</div>';
+  const eligible=ascensionEligible();
+  html+='<div class="card">'
+    +'<div class="section-title">✨ 覚醒(プレステージ)</div>'
+    +'<div class="stat-row"><span class="stat-label">覚醒回数</span><span class="stat-val">'+(S.user.ascensionCount||0)+'回</span></div>'
+    +'<div class="stat-row"><span class="stat-label">永続AP獲得ボーナス</span><span class="stat-val" style="color:var(--gold)">+'+((ascensionMultiplier()-1)*100).toFixed(0)+'%</span></div>'
+    +'<div style="font-size:11px;color:var(--text-dim);margin:8px 0">全ての称号(現在'+TITLE_DEFS.filter(t=>S.user.titles.seen[t.id]).length+'/'+TITLE_DEFS.length+')を獲得すると、覚醒できます。覚醒すると陣地・通信網などの進行をリセットしつつ、永続的なAP獲得ボーナス(+5%/回)を得られます。称号・コレクション・覚醒回数は保持されます。</div>'
+    +'<button class="btn '+(eligible?'btn-gold':'btn-dim btn-soft')+'" id="ascend-btn">✨ 覚醒する</button>'
+    +'</div>';
+  html+='<div class="card">'
+    +'<div class="section-title">データ管理</div>'
+    +'<div style="font-size:11px;color:var(--text-dim);margin-bottom:8px">全ての進行状況(陣地・タスク・称号・通信網など)を消去して最初からやり直します。この操作は取り消せません。</div>'
+    +'<button class="btn btn-danger" id="reset-progress-btn">⚠️ 進行状況をリセット</button>'
+    +'</div>';
+  return html;
+}
+function renderHQMissionTab(){
+  const dm=S.dailyMission;
+  const items=[
+    {key:'loginDone', label:'本日ログインする', done:dm.loginDone},
+    {key:'checkinDone', label:'本日1回チェックインする', done:dm.checkinDone},
+    {key:'taskDone', label:'本日シュガー粒を処理する', done:dm.taskDone},
+  ];
+  let html='<div class="card"><div class="section-title">デイリーミッション(本日分・AM3:00更新)</div>';
+  items.forEach(it=>{
+    html+='<div class="mission-item"><div class="mission-chk'+(it.done?' done':'')+'">'+(it.done?'✓':'')+'</div>'
+      +'<div class="mission-title">'+it.label+'</div></div>';
+  });
+  html+='</div>';
+  const wp=weeklyProgress();
+  if(wp){
+    const pct=Math.min(100, Math.round(wp.current/wp.def.target*100));
+    html+='<div class="card"><div class="section-title">週間チャレンジ</div>'
+      +'<div class="stat-row"><span class="stat-label">'+wp.def.icon+' '+esc(wp.def.desc)+'</span><span class="stat-val">'+wp.current+' / '+wp.def.target+'</span></div>'
+      +'<div class="pen-bar-wrap"><div class="pen-bar"><div class="pen-fill" style="width:'+pct+'%;background:var(--success)"></div></div></div>';
+    if(wp.done && !S.weeklyMission.claimed){
+      html+='<div style="margin-top:10px"><button class="btn btn-gold" id="claim-weekly-btn">🎉 報酬を受け取る(AP'+wp.def.reward+')</button></div>';
+    } else if(S.weeklyMission.claimed){
+      html+='<div class="streak-sub" style="margin-top:8px;color:var(--gold)">受け取り済み</div>';
+    } else {
+      html+='<div class="streak-sub" style="margin-top:8px">今週中に達成すると解析ポイント+'+wp.def.reward+'</div>';
+    }
+    html+='</div>';
+  }
+  html+='<div class="card"><div class="streak-hero">'
+    +'<div class="streak-num">🔥 '+S.streak.current+'</div>'
+    +'<div class="streak-sub">連続達成日数(3ミッション全達成で+1)</div>'
+    +'<div class="milestone-row">'+STREAK_MILESTONES.map(m=>'<span class="milestone-chip'+(S.streak.current>=m?' hit':'')+'">'+m+'日</span>').join('')+'</div>'
+    +'<div class="streak-sub" style="margin-top:10px">ストリーク保護(角砂糖) 今月使用 '+S.streak.protectionUsedThisMonth+'/'+PROTECTION_MONTHLY_LIMIT+'回</div>'
+    +'<div class="streak-sub">保護チケット(AP購入分) 所持 '+(S.streak.bonusProtection||0)+'枚</div>'
+    +'</div></div>';
+  html+='<div class="card">'
+    +'<div class="section-title">解析ポイント(AP)を使う ('+(S.user.apPoints||0)+'AP所持)</div>'
+    +'<div style="font-size:11px;color:var(--text-dim);margin-bottom:8px">月の無料保護を使い切っても、ストリークを守れるチケットを購入できます。</div>'
+    +'<button class="btn btn-dim'+((S.user.apPoints||0)<AP_STREAK_TICKET_COST?' btn-soft':'')+'" id="buy-streak-ticket-btn">🍬 AP'+AP_STREAK_TICKET_COST+'でストリーク保護チケット購入</button>'
+    +'</div>';
+  return html;
+}
+function updateMapFooter(){
+  if(!S) return;
+  const sum=pendingTasksSummary();
+  document.getElementById('footer-hq').textContent='🏠 本拠地: '+(S.user.hqGeohash?nameForHash(S.user.hqGeohash):'未登録');
+  document.getElementById('footer-tasks').textContent='📦 未処理タスク: '+sum.count+'件('+sum.amount+'粒)';
+}
+function updateExposureUI(){
+  if(!S) return;
+  const v=S.exposure||0;
+  const fill=document.getElementById('exp-fill'), val=document.getElementById('exp-val');
+  if(!fill) return;
+  fill.style.width=v+'%';
+  fill.style.background = v>=70?'var(--danger)': v>=40?'var(--warn)':'var(--accent)';
+  val.textContent=Math.round(v);
+}
+function updateStreakHeader(){
+  const el=document.getElementById('hdr-streak');
+  if(el && S) el.textContent='🔥'+S.streak.current;
+  const badge=document.getElementById('hdr-test-badge');
+  if(badge && S) badge.style.display = isTestMode() ? 'inline-block' : 'none';
+}
+
+/* ══════════ お助けキャラのガイド(常設ナビゲーション) ══════════ */
+function computeGuideText(){
+  if(!S) return '…';
+  if(Object.keys(S.territories).length===0) return '足元のコーヒーポットを探して、まず「チェックイン」で最初の一さじを仕込もう！';
+  const pend=pendingTasksSummary();
+  if(!S.user.hqGeohash) return 'チェックインした陣地を選んで「ここを本拠地にする」を押そう。指令を出す拠点が必要だ！';
+  if(pend.count>0) return 'HQに'+pend.count+'件のシュガー粒が眠ってる。HQで解析して報酬を受け取ろう！';
+  if(hasRecentSeverance()) return '⚠️ 通信経路が遮断された。通信網を開いて経路を再接続しよう';
+  const decayingCount=countDecayingTerritories();
+  if(decayingCount>0) return '📦 '+decayingCount+'箇所が本拠地と繋がっておらず、浸透度が静かに減衰している。通信網を繋いで補給しよう';
+  const riskyCount=Object.values(S.territories).filter(t=>{
+    const immune=t.inspectorImmuneUntil && Date.now()<t.inspectorImmuneUntil;
+    return !immune && t.penetration>=INSPECTOR_MIN && t.penetration<=INSPECTOR_MAX;
+  }).length;
+  if(riskyCount>0) return riskyCount+'箇所が検査官に見つかりやすい状態だ。早めに浸透を進めるか、AP対策を検討しよう';
+  if(!S.dailyMission.checkinDone) return '今日はまだチェックインしてないな。陣地を見て回ろう！';
+  if(!S.dailyMission.taskDone) return 'タスク処理がまだ残ってる。HQをチェックしよう';
+  return '今日のミッションは完了！新しい陣地を探しに行こう。ストリークが伸びてるぞ';
+}
+function updateGuide(){
+  const el=document.getElementById('guide-text');
+  if(el && S) el.textContent=computeGuideText();
+  updateTimeBonusBadge();
+}
+function updateTimeBonusBadge(){
+  const el=document.getElementById('time-bonus-badge');
+  if(!el) return;
+  const tm=timeMultiplier();
+  if(tm.label){ el.textContent=tm.label; el.style.display='block'; }
+  else { el.style.display='none'; }
+}
+function toggleTestMode(){
+  S.user.testMode=!S.user.testMode; save();
+  toast(S.user.testMode?'🧪 テストモードON(距離・ヒステリシス無視)':'テストモードOFF','info');
+  updateStreakHeader();
+  updateGuide();
+  renderHQ();
+}
+function testCheckinFromInputs(){
+  const lat=parseFloat(document.getElementById('test-lat').value);
+  const lon=parseFloat(document.getElementById('test-lon').value);
+  if(isNaN(lat)||isNaN(lon)){ toast('緯度・経度を正しく入力してください','error'); return; }
+  if(!S.user.testMode){ toast('先にテストモードをONにしてください','info'); return; }
+  processCheckin(lat,lon);
+}
+
+/* ══════════ 検査官アラート演出(実イベント発生時のみ・侵入検知の緊迫感) ══════════ */
+function flashInspectorAlert(){
+  const el=document.getElementById('inspector-flash');
+  el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'),1650);
+}
+
+/* ══════════ OVERLAYS ══════════ */
+function showDecryptOverlay(cb){
+  const ov=document.getElementById('decrypt-overlay'), fill=document.getElementById('decrypt-fill');
+  ov.classList.add('active');
+  fill.style.transition='none'; fill.style.width='0%';
+  requestAnimationFrame(()=>{ requestAnimationFrame(()=>{ fill.style.transition='width 1.1s linear'; fill.style.width='100%'; }); });
+  setTimeout(()=>{ ov.classList.remove('active'); fill.style.transition='none'; fill.style.width='0%'; cb&&cb(); },1150);
+}
+
+/* ══════════ TOAST(キュー方式: 連続発生時に消えるのが早すぎる問題を解消) ══════════ */
+let toastQueue=[], toastBusy=false;
+function toast(msg,type){
+  toastQueue.push({msg,type});
+  if(toastQueue.length>5) toastQueue.splice(0,toastQueue.length-5);
+  if(!toastBusy) processToastQueue();
+}
+function processToastQueue(){
+  if(toastQueue.length===0){ toastBusy=false; return; }
+  toastBusy=true;
+  const {msg,type}=toastQueue.shift();
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.className='toast show '+(type||'');
+  setTimeout(()=>{
+    el.classList.remove('show');
+    setTimeout(processToastQueue,220);
+  },1900);
+}
+function showHintOnce(key,text){
+  if(!S||!S.user.seenHints) return;
+  if(S.user.seenHints[key]) return;
+  S.user.seenHints[key]=true;
+  save();
+  toast('💡 '+text,'info');
+}
+
+/* ══════════ GAME CLOCK ══════════ */
+let clockStarted=false;
+function startClocks(){
+  if(clockStarted) return; clockStarted=true;
+  setInterval(()=>{ checkDailyRollover(); inspectorTick(); networkSeveranceTick(); updateStreakHeader(); updateGuide(); },5000);
+  setInterval(exposureDecayTick,5000);
+}
+
+/* ══════════ BOOT ══════════ */
+function enterGame(){
+  checkDailyRollover();
+  if(!MAP) initMap();
+  startClocks();
+  document.getElementById('bottom-nav').classList.remove('hide');
+  show('map');
+  if(!S.user.tutorialDone){
+    S.user.tutorialDone=true; save();
+    setTimeout(()=>toast('🍬 チェックインして陣地に浸透しよう','info'),700);
+  }
+}
+
+window.addEventListener('DOMContentLoaded', ()=>{
+  // LIFFの初期化を実行（ダミーIDのままの場合は実行しない安全策）
+  if (MY_LIFF_ID !== 'YOUR_LIFF_ID_HERE') {
+    initializeLiff();
+  }
+
+  const existing=load();
+  if(existing){
+    S=migrate(existing);
+    document.getElementById('name-input').value=S.user.name;
+    document.getElementById('start-btn').textContent='▶ 潜入を再開する';
+    document.getElementById('login-note').textContent='前回のレジスタンス活動データが見つかりました。';
+  }
+
+  document.getElementById('start-btn').addEventListener('click', ()=>{
+    if(!S){
+      const name=document.getElementById('name-input').value.trim()||'名無しの戦士';
+      S=newState(name); save();
+    }
+    enterGame();
+  });
+  document.getElementById('checkin-btn').addEventListener('click', doCheckin);
+  document.getElementById('bottom-nav').addEventListener('click', e=>{
+    const b=e.target.closest('[data-target]'); if(!b) return;
+    const tgt=b.dataset.target;
+    if(tgt==='network'){ openNetworkDirect(); }
+    else if(tgt==='map'){ show('map'); }
+    else { currentHQTab=parseInt(tgt.replace('hq',''),10); show('hq'); }
+  });
+  document.getElementById('gps-btn').addEventListener('click', doGpsJump);
+  document.getElementById('legend-toggle').addEventListener('click', ()=>document.getElementById('legend-panel').classList.toggle('show'));
+  document.getElementById('story-modal-ok').addEventListener('click', ()=>document.getElementById('story-modal').classList.remove('active'));
+  document.getElementById('story-modal-watch').addEventListener('click', ()=>{ currentBossEvent=null; document.getElementById('story-modal').classList.remove('active'); });
+  document.getElementById('story-modal-fight').addEventListener('click', resolveBossFight);
+  document.getElementById('summary-modal-ok').addEventListener('click', ()=>{
+    document.getElementById('summary-modal').classList.remove('active');
+    if(queuedStoryEvent){ const ev=queuedStoryEvent; queuedStoryEvent=null; setTimeout(()=>showStoryModal(ev),250); }
+  });
+  document.getElementById('event-avoid-btn').addEventListener('click', ()=>resolveEventCard('avoid'));
+  document.getElementById('event-push-btn').addEventListener('click', ()=>resolveEventCard('push'));
+
+  document.getElementById('detail-body').addEventListener('click', e=>{
+    if(e.target.closest('[data-action="register-hq"]') && currentHash) registerHQ(currentHash);
+    if(e.target.closest('[data-action="ap-boost"]') && currentHash) applyApBoost(currentHash);
+    if(e.target.closest('[data-action="ap-immune"]') && currentHash) applyApImmunity(currentHash);
+    if(e.target.closest('[data-action="ap-bandwidth"]') && currentHash) applyBandwidthUpgrade(currentHash);
+    if(e.target.closest('[data-action="upgrade-defense"]') && currentHash) upgradeDefense(currentHash);
+    if(e.target.closest('[data-action="upgrade-production"]') && currentHash) upgradeProduction(currentHash);
+  });
+  document.getElementById('hq-body').addEventListener('click', e=>{
+    if(e.target.closest('#process-tasks-btn')) processTasks();
+    if(e.target.closest('#quick-hq-btn')) quickRegisterHQHere();
+    if(e.target.closest('#toggle-testmode-btn')) toggleTestMode();
+    if(e.target.closest('#test-checkin-btn')) testCheckinFromInputs();
+    if(e.target.closest('#buy-streak-ticket-btn')) buyStreakTicket();
+    if(e.target.closest('#claim-weekly-btn')) claimWeeklyReward();
+    if(e.target.closest('#open-network-btn')) openNetworkDirect();
+    if(e.target.closest('#reset-progress-btn')) resetProgress();
+    if(e.target.closest('#ascend-btn')) ascend();
+    if(e.target.closest('#open-test-tab-btn')){ currentHQTab=3; renderHQ(); }
+  });
+  document.getElementById('net-graph-wrap').addEventListener('click', e=>{
+    const g=e.target.closest('[data-hash]');
+    if(g){ netSelected=g.dataset.hash; renderNetwork(); }
+  });
+  document.getElementById('net-panel').addEventListener('click', e=>{
+    if(e.target.closest('#net-start-btn')){
+      const h=netSelected, t=S.territories[h];
+      const maxOut=outDegreeMax(h);
+      const eligible=t&&outDegree(h)<maxOut&&t.checkinCount>0;
+      if(!eligible){ toast('送信元として'+maxOut+'本接続済みです(最大'+maxOut+'本)','error'); }
+      else { netPendingFrom=h; renderNetwork(); }
+    }
+    if(e.target.closest('#net-cancel-btn')){ netPendingFrom=null; renderNetwork(); }
+    if(e.target.closest('#net-confirm-btn')){
+      const from=netPendingFrom, to=netSelected;
+      if(connectTerritories(from,to)){ netPendingFrom=null; }
+      renderNetwork();
+    }
+  });
+});
+</script>
 </body>
 </html>
