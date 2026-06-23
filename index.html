@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LIFF App Test</title>
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+</head>
+<body>
+    <h1>LIFFアプリ テスト</h1>
+    <div id="status">初期化中...</div>
+    <div id="user-info" style="display:none;">
+        <p>ようこそ、<span id="display-name"></span> さん</p>
+    </div>
+
+    <script>
+        // LINE Developersで後ほど発行されるLIFF IDをここに記述します
+        const MY_LIFF_ID = 'YOUR_LIFF_ID_HERE'; 
+
+        async function initializeLiff() {
+            try {
+                await liff.init({ liffId: MY_LIFF_ID });
+                document.getElementById('status').innerText = 'LIFF初期化成功';
+                
+                // ログイン状態の確認とユーザー情報の取得
+                if (liff.isLoggedIn()) {
+                    const profile = await liff.getProfile();
+                    document.getElementById('display-name').innerText = profile.displayName;
+                    document.getElementById('user-info').style.display = 'block';
+                } else {
+                    // LINEブラウザ以外で開いた場合はログインを促す
+                    liff.login();
+                }
+            } catch (error) {
+                document.getElementById('status').innerText = '初期化失敗: ' + error.message;
+                console.error('LIFF Initialization failed', error);
+            }
+        }
+
+        // ページ読み込み時に実行
+        window.onload = function() {
+            if (MY_LIFF_ID === 'YOUR_LIFF_ID_HERE') {
+                document.getElementById('status').innerText = '注意: LIFF IDを設定してください。';
+            } else {
+                initializeLiff();
+            }
+        };
+    </script>
+</body>
+</html>
